@@ -500,10 +500,10 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
 
       {/* 删除确认弹窗：显示影响范围 */}
       {confirmTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-[#131722]/90 backdrop-blur-xl rounded-xl shadow-xl w-full max-w-md mx-4 border border-transparent dark:border-white/[0.1]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white dark:bg-[#131722]/90 backdrop-blur-xl rounded-xl shadow-xl w-full max-w-md border border-transparent dark:border-white/[0.1]">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-white/[0.05]">
-              <h3 className="text-base md:text-lg font-semibold text-red-600">删除任务</h3>
+              <h3 className="text-base md:text-lg font-semibold text-red-600">确认删除</h3>
               <button
                 onClick={() => !isDeleting && setConfirmTarget(null)}
                 className="text-gray-400 hover:text-gray-600 dark:text-gray-400"
@@ -513,7 +513,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
             </div>
             <div className="p-4 space-y-3">
               <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
-                此操作将<span className="font-semibold text-red-600">同时删除记录和本地文件</span>，<span className="font-semibold text-red-600">不可恢复</span>。
+                此操作将删除任务记录和本地文件，不可恢复。
               </p>
               <div className="bg-gray-50 dark:bg-white/[0.05] rounded p-3 text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between">
                 <span className="truncate mr-2">{confirmTarget.title || confirmTarget.video_id}</span>
