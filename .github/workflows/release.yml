@@ -105,31 +105,29 @@ jobs:
             --title "Release $VERSION" \
             --notes "## 🚀 Release $VERSION
 
-### 📦 下载
+          ### 📦 下载
 
-| 平台 | 架构 | 下载链接 |
-|------|------|----------|
-| 🪟 Windows | x64 | [ytb2bili-windows-amd64.zip](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-windows-amd64.zip) |
-| 🐧 Linux | x64 | [ytb2bili-linux-amd64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-linux-amd64.tar.gz) |
-| 🐧 Linux | ARM64 | [ytb2bili-linux-arm64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-linux-arm64.tar.gz) |
-| 🍎 macOS | Intel | [ytb2bili-darwin-amd64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-darwin-amd64.tar.gz) |
-| 🍎 macOS | Apple Silicon | [ytb2bili-darwin-arm64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-darwin-arm64.tar.gz) |
+          - 🪟 Windows x64: [ytb2bili-windows-amd64.zip](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-windows-amd64.zip)
+          - 🐧 Linux x64: [ytb2bili-linux-amd64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-linux-amd64.tar.gz)
+          - 🐧 Linux ARM64: [ytb2bili-linux-arm64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-linux-arm64.tar.gz)
+          - 🍎 macOS Intel: [ytb2bili-darwin-amd64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-darwin-amd64.tar.gz)
+          - 🍎 macOS Apple Silicon: [ytb2bili-darwin-arm64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-darwin-arm64.tar.gz)
 
-### 📝 变更说明
+          ### 📝 变更说明
 
-- Fork from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
-- 完整功能保持不变
-- 更新包路径为 github.com/ZhantaoLi/ytb2bili
+          - Fork from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
+          - 完整功能保持不变
+          - 更新包路径为 github.com/ZhantaoLi/ytb2bili
 
-### 🐳 Docker
+          ### 🐳 Docker
 
-\`\`\`bash
-docker pull zhantaoli/ytb2bili:latest
-\`\`\`
+          \`\`\`bash
+          docker pull zhantaoli/ytb2bili:latest
+          \`\`\`
 
----
+          ---
 
-**完整文档**: [README.md](https://github.com/ZhantaoLi/ytb2bili/blob/main/README.md)" \
+          **完整文档**: [README.md](https://github.com/ZhantaoLi/ytb2bili/blob/main/README.md)" \
             dist/ytb2bili-windows-amd64.zip \
             dist/ytb2bili-linux-amd64.tar.gz \
             dist/ytb2bili-linux-arm64.tar.gz \
