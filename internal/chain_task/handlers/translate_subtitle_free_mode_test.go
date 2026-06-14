@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/difyz9/ytb2bili/internal/chain_task/base"
-	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
-	"github.com/difyz9/ytb2bili/internal/core"
-	"github.com/difyz9/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
+	"github.com/ZhantaoLi/ytb2bili/internal/core"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 	"go.uber.org/zap"
 )
 

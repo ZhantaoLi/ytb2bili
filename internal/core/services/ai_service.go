@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/difyz9/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 	"go.uber.org/zap"
 )
 

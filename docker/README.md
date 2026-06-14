@@ -23,7 +23,7 @@ curl -fsSL https://raw.githubusercontent.com/difyz9/ytb2bili-docker/main/docker-
 也可以直接克隆本仓库：
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili-docker.git
+git clone https://github.com/ZhantaoLi/ytb2bili-docker.git
 cd ytb2bili-docker
 cp config.toml.example config.toml
 ```
@@ -187,5 +187,5 @@ ytb2bili/
 ## 相关链接
 
 - Docker Hub 镜像：https://hub.docker.com/r/difyz9/ytb2bili
-- 主项目源码：https://github.com/difyz9/ytb2bili
-- 本仓库（Docker 配置）：https://github.com/difyz9/ytb2bili-docker
+- 主项目源码：https://github.com/ZhantaoLi/ytb2bili
+- 本仓库（Docker 配置）：https://github.com/ZhantaoLi/ytb2bili-docker

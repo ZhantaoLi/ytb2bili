@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/difyz9/ytb2bili/pkg/analytics"
+	"github.com/ZhantaoLi/ytb2bili/pkg/analytics"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

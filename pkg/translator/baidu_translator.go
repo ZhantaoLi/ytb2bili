@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	logger2 "github.com/difyz9/ytb2bili/pkg/logger"
+	logger2 "github.com/ZhantaoLi/ytb2bili/pkg/logger"
 )
 
 var logger = logger2.GetLogger()

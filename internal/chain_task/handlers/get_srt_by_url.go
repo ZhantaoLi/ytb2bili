@@ -14,10 +14,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"github.com/difyz9/ytb2bili/internal/chain_task/base"
-	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
-	"github.com/difyz9/ytb2bili/internal/core"
-	"github.com/difyz9/ytb2bili/pkg/cos"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
+	"github.com/ZhantaoLi/ytb2bili/internal/core"
+	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 )
 
 // XMLText XML 字幕中的文本元素

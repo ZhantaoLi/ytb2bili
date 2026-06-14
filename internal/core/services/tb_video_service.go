@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/difyz9/ytb2bili/internal/core/models"
-	"github.com/difyz9/ytb2bili/pkg/utils"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/models"
+	"github.com/ZhantaoLi/ytb2bili/pkg/utils"
 	"fmt"
 	"time"
 

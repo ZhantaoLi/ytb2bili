@@ -1,8 +1,8 @@
 package core
 
 import (
-	"github.com/difyz9/ytb2bili/internal/core/types"
-	"github.com/difyz9/ytb2bili/pkg/cos"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"context"
 	"fmt"
 	"io"

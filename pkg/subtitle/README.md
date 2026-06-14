@@ -19,7 +19,7 @@ package main
 
 import (
     "log"
-    "github.com/difyz9/ytb2bili_prod/pkg/subtitle"
+    "github.com/ZhantaoLi/ytb2bili_prod/pkg/subtitle"
     "github.com/sirupsen/logrus"
 )
 
@@ -262,7 +262,7 @@ package main
 
 import (
     "log"
-    "github.com/difyz9/ytb2bili_prod/pkg/subtitle"
+    "github.com/ZhantaoLi/ytb2bili_prod/pkg/subtitle"
     "github.com/sirupsen/logrus"
 )
 

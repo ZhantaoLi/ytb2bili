@@ -20,7 +20,7 @@ services:
       start_period: 30s
 
   ytb2bili:
-    image: difyz9/ytb2bili:latest   # 直接使用 Docker Hub 预构建镜像
+    image: zhantaoli/ytb2bili:latest   # 直接使用 Docker Hub 预构建镜像
     container_name: ytb2bili-app
     restart: unless-stopped
     depends_on:

@@ -1,4 +1,4 @@
-module github.com/difyz9/ytb2bili
+module github.com/ZhantaoLi/ytb2bili
 
 go 1.24.0
 
@@ -25,9 +25,12 @@ require (
 require (
 	github.com/difyz9/go-analysis-client v0.0.2
 	github.com/difyz9/go-auth v0.0.8
+	github.com/ggerganov/whisper.cpp/bindings/go v0.0.0-20260609105100-df7638d8229a
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/generative-ai-go v0.20.1
+	github.com/google/uuid v1.6.0
 	google.golang.org/api v0.186.0
+	gorm.io/driver/sqlite v1.6.0
 )
 
 require (
@@ -59,7 +62,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.5 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -84,7 +86,6 @@ require (
 	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.9 // indirect
-	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
@@ -113,5 +114,4 @@ require (
 	google.golang.org/grpc v1.64.1 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/sqlite v1.6.0 // indirect
 )

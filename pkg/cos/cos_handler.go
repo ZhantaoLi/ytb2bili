@@ -1,7 +1,7 @@
 package cos
 
 import (
-	"github.com/difyz9/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 )
 
 // CosHandler COS处理器接口

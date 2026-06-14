@@ -1,13 +1,13 @@
 package manager
 
 import (
-	"github.com/difyz9/ytb2bili/internal/core/services"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/difyz9/ytb2bili/internal/core/models"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/models"
 )
 
 // StateManager 任务状态管理器

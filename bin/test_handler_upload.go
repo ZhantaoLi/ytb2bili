@@ -8,13 +8,13 @@ import (
 
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/handlers"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
-	"github.com/difyz9/ytb2bili/internal/core"
-	"github.com/difyz9/ytb2bili/internal/core/services"
-	"github.com/difyz9/ytb2bili/internal/core/types"
-	"github.com/difyz9/ytb2bili/pkg/store"
-	"github.com/difyz9/ytb2bili/pkg/store/model"
+	"github.com/ZhantaoLi/ytb2bili/internal/core"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/pkg/store"
+	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
 	"go.uber.org/zap"
-	"github.com/difyz9/ytb2bili/internal/storage"
+	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 )
 
 //  ./bin/test_handler_upload -video ./data/001.mp4 -id fT6kGrHtf9k -login login_info.json

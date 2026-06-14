@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ZhantaoLi/bilibili-go-sdk/bilibili"
+	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 )
 

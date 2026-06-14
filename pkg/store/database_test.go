@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/difyz9/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 )
 
 func TestNewDatabaseSupportsSQLite(t *testing.T) {

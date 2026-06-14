@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/difyz9/ytb2bili/pkg/store/model"
+	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
 
 	"gorm.io/gorm"
 )

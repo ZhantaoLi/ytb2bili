@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/difyz9/ytb2bili/internal/core"
+	"github.com/ZhantaoLi/ytb2bili/internal/core"
 	bilibili2 "github.com/difyz9/bilibili-go-sdk/bilibili"
-	"github.com/difyz9/ytb2bili/pkg/cos"
+	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"encoding/json"
 	"log"
 	"net/http"

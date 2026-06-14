@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/difyz9/ytb2bili/pkg/store/model"
+	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

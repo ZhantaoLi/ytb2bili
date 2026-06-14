@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/difyz9/ytb2bili/internal/core"
-	"github.com/difyz9/ytb2bili/internal/core/services"
-	"github.com/difyz9/ytb2bili/pkg/store/model"
+	"github.com/ZhantaoLi/ytb2bili/internal/core"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
+	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
 
 	"github.com/gin-gonic/gin"
 )

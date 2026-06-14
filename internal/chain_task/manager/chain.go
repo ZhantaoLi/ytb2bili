@@ -3,7 +3,7 @@ package manager
 import (
 	"fmt"
 	"log"
-	"github.com/difyz9/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 )
 
 // TaskChain 任务链

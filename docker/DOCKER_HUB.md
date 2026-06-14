@@ -134,6 +134,6 @@ docker compose down -v
 
 ## 相关链接
 
-- 源码仓库：[difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
-- Docker 配置仓库：[difyz9/ytb2bili-docker](https://github.com/difyz9/ytb2bili-docker)
-- 问题反馈：[GitHub Issues](https://github.com/difyz9/ytb2bili/issues)
+- 源码仓库：[difyz9/ytb2bili](https://github.com/ZhantaoLi/ytb2bili)
+- Docker 配置仓库：[difyz9/ytb2bili-docker](https://github.com/ZhantaoLi/ytb2bili-docker)
+- 问题反馈：[GitHub Issues](https://github.com/ZhantaoLi/ytb2bili/issues)

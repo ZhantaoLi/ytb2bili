@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/difyz9/ytb2bili/pkg/auth"
+	"github.com/ZhantaoLi/ytb2bili/pkg/auth"
 	"github.com/gin-gonic/gin"
 )
 

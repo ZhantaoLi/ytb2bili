@@ -1,8 +1,8 @@
 package base
 
 import (
-	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
-	"github.com/difyz9/ytb2bili/pkg/cos"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
+	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 )
 
 // BaseTask 基础任务实现
