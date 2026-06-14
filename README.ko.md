@@ -34,8 +34,8 @@
 ### 2. 배포 파일 받기
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili-docker.git
-cd ytb2bili-docker
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili
 docker compose up -d
 ```
 
@@ -118,7 +118,7 @@ Docker 관련 자세한 내용은 [docker/README.md](docker/README.md)를 참고
 ### 1. 저장소 클론
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili.git
+git clone https://github.com/ZhantaoLi/ytb2bili.git
 cd ytb2bili
 ```
 
@@ -205,6 +205,3 @@ curl http://localhost:8096/health
 ## 라이선스 및 연락처
 
 - 라이선스: [MIT License](LICENSE)
-- GitHub: [@difyz9](https://github.com/difyz9)
-- 프로젝트: [https://github.com/difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
-- QQ 그룹: 773066052

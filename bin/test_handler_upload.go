@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/difyz9/ytb2bili/internal/chain_task/handlers"
-	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/handlers"
+	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
 	"github.com/difyz9/ytb2bili/internal/core"
 	"github.com/difyz9/ytb2bili/internal/core/services"
 	"github.com/difyz9/ytb2bili/internal/core/types"
@@ -55,11 +55,11 @@ func main() {
 	// 如果 core 包有 LoadConfig 方法最好，否则手动构造
 	// 查阅之前的 context， config.toml 存在。
 	// 这里为了简化，我们尝试构造一个基础配置对象，因为 handlers 需要 AppServer.Config
-	
+
 	// 尝试读取真实的配置，如果失败则使用默认
 	// 假设 core.LoadConfig 存在，但我们没有看过它的签名。
 	// 替代方案：直接读取 toml 或者构造 dummy Config
-	
+
 	appConfig := &types.AppConfig{
 		Database: types.Database{
 			Type:     "mysql",
@@ -74,10 +74,10 @@ func main() {
 			UseOriginalDesc:  true,
 		},
 	}
-	
+
 	// 尝试覆盖配置（实际生产中应该解析 toml）
 	// 这里我们直接连接数据库
-	
+
 	logger.Info("正在连接数据库...")
 	db, err := store.NewDatabase(appConfig)
 	if err != nil {
@@ -145,7 +145,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	logger.Infof("使用登录信息文件: %s", storePath)
 	loginStore := storage.NewLoginStore(storePath)
 	if !loginStore.IsValid() {
@@ -154,7 +154,7 @@ func main() {
 		// 也许我们不应该退出，让 handler 自身去报错，或者在这里就退出?
 		// handler 内部也会检查，但为了明确提示用户:
 		// logger.Error("无法继续: 需提供有效登录凭证")
-		// os.Exit(1) 
+		// os.Exit(1)
 		// 既然是测试工具，暂时不强退，看handler反应
 	}
 	handler.LoginStore = loginStore

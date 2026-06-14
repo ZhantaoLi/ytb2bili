@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/difyz9/bilibili-go-sdk/bilibili"
-	"github.com/difyz9/ytb2bili/internal/storage"
+	"github.com/ZhantaoLi/bilibili-go-sdk/bilibili"
+	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 )
 
 func main() {
@@ -51,7 +51,7 @@ func main() {
 
 	fmt.Printf("正在加载登录信息: %s\n", storePath)
 	store := storage.NewLoginStore(storePath)
-	
+
 	if !store.IsValid() {
 		log.Fatalf("❌ 登录信息无效或文件不存在。请先通过Web端扫码登录，确保 %s 存在。\n", storePath)
 	}
@@ -89,7 +89,7 @@ func main() {
 
 	// 5. 提交投稿
 	fmt.Println("📝 正在提交投稿信息...")
-	
+
 	// 这里使用默认的分区 TID=17 (单机游戏)，实际使用中可能需要配置
 	studio := &bilibili.Studio{
 		Copyright:    1, // 1=自制

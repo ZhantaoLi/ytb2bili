@@ -4,8 +4,6 @@
 
 `ytb2bili` is a workflow system for local video translation playback and YouTube-to-Bilibili publishing. It includes a web admin panel, task-chain orchestration, subtitle processing, AI copy generation, subtitle audio synthesis, synchronized A/V preview, Bilibili upload, and subtitle upload.
 
-Video tutorial: https://www.bilibili.com/video/BV1tCRTBBEJo
-
 ## Key Features
 
 - Local video translation playback with translated subtitles and dubbed audio
@@ -34,8 +32,8 @@ Docker Compose is the fastest way to get started. By default, it launches two se
 ### 2. Get Deployment Files
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili-docker.git
-cd ytb2bili-docker
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili
 docker compose up -d
 ```
 
@@ -118,7 +116,7 @@ The project has three main parts:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili.git
+git clone https://github.com/ZhantaoLi/ytb2bili.git
 cd ytb2bili
 ```
 
@@ -205,6 +203,3 @@ curl http://localhost:8096/health
 ## License and Contact
 
 - License: [MIT License](LICENSE)
-- GitHub: [@difyz9](https://github.com/difyz9)
-- Project: [https://github.com/difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
-- QQ group: 773066052

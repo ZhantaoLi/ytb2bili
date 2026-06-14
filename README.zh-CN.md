@@ -34,8 +34,8 @@
 ### 2. 获取部署文件
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili-docker.git
-cd ytb2bili-docker
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili
 docker compose up -d
 ```
 
@@ -120,7 +120,7 @@ docker compose down
 ### 1. 获取代码
 
 ```bash
-git clone https://github.com/difyz9/ytb2bili.git
+git clone https://github.com/ZhantaoLi/ytb2bili.git
 cd ytb2bili
 ```
 
@@ -209,9 +209,6 @@ curl http://localhost:8096/health
 ## 许可证与联系方式
 
 - 许可证：[MIT License](LICENSE)
-- GitHub：[@difyz9](https://github.com/difyz9)
-- 项目链接：[https://github.com/difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
-- QQ 交流群：773066052
 
 <div align="center">
 

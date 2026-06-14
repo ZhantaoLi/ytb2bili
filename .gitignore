@@ -57,3 +57,7 @@ coverage.html
 
 # Docker
 .dockerignore
+
+# 前端构建产物
+web/out/
+
