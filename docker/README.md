@@ -1,7 +1,7 @@
 # ytb2bili — YouTube 自动搬运到 Bilibili
 
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://hub.docker.com/r/difyz9/ytb2bili)
-[![Docker Pulls](https://img.shields.io/docker/pulls/difyz9/ytb2bili)](https://hub.docker.com/r/difyz9/ytb2bili)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://hub.docker.com/r/zhantaoli/ytb2bili)
+[![Docker Pulls](https://img.shields.io/docker/pulls/zhantaoli/ytb2bili)](https://hub.docker.com/r/zhantaoli/ytb2bili)
 
 全自动视频搬运工具：下载 → 生成字幕 → 上传 B 站，一条链路默认免费完成。
 
@@ -16,15 +16,15 @@
 ```bash
 mkdir ytb2bili && cd ytb2bili
 
-curl -fsSL https://raw.githubusercontent.com/difyz9/ytb2bili-docker/main/config.toml -o config.toml
-curl -fsSL https://raw.githubusercontent.com/difyz9/ytb2bili-docker/main/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/ZhantaoLi/ytb2bili/main/config.toml.example -o config.toml
+curl -fsSL https://raw.githubusercontent.com/ZhantaoLi/ytb2bili/main/docker-compose.yml -o docker-compose.yml
 ```
 
 也可以直接克隆本仓库：
 
 ```bash
-git clone https://github.com/ZhantaoLi/ytb2bili-docker.git
-cd ytb2bili-docker
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili
 cp config.toml.example config.toml
 ```
 
@@ -142,7 +142,7 @@ services:
       - "3309:3306"
 
   ytb2bili:
-    image: difyz9/ytb2bili:latest   # 从 Docker Hub 拉取预构建镜像
+    image: zhantaoli/ytb2bili:latest   # 从 Docker Hub 拉取预构建镜像
     depends_on:
       mysql:
         condition: service_healthy
@@ -186,6 +186,6 @@ ytb2bili/
 
 ## 相关链接
 
-- Docker Hub 镜像：https://hub.docker.com/r/difyz9/ytb2bili
+- Docker Hub 镜像：https://hub.docker.com/r/zhantaoli/ytb2bili
 - 主项目源码：https://github.com/ZhantaoLi/ytb2bili
-- 本仓库（Docker 配置）：https://github.com/ZhantaoLi/ytb2bili-docker
+- GitHub Releases：https://github.com/ZhantaoLi/ytb2bili/releases

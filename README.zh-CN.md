@@ -4,8 +4,6 @@
 
 `ytb2bili` 是一个面向本地视频翻译播放与 YouTube 到 Bilibili 搬运的处理系统，提供 Web 管理后台、任务链编排、字幕处理、AI 文案生成、字幕音频合成、音视频同步播放、B 站上传、字幕上传等完整能力。
 
-原项目来源：[difyz9/ytb2bili](https://github.com/ZhantaoLi/ytb2bili)
-
 ## 核心特性
 
 - 本地视频翻译播放：支持本地视频生成翻译字幕与配音，并以音视频同步方式播放和校对
@@ -209,10 +207,3 @@ curl http://localhost:8096/health
 ## 许可证与联系方式
 
 - 许可证：[MIT License](LICENSE)
-
-<div align="center">
-
-<img src="img/220421_706.png" alt="QQ群二维码" width="180"/>
-<img src="img/751763091471.jpg" alt="微信二维码" width="180"/>
-
-</div>

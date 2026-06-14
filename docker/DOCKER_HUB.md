@@ -1,11 +1,11 @@
-# difyz9/ytb2bili
+# zhantaoli/ytb2bili
 
 > YouTube / TikTok → Bilibili 全自动搬运系统  
 > 默认使用免费流程：下载、生成字幕、定时发布，开箱即用。
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/difyz9/ytb2bili)](https://hub.docker.com/r/difyz9/ytb2bili)
-[![Image Size](https://img.shields.io/docker/image-size/difyz9/ytb2bili/latest)](https://hub.docker.com/r/difyz9/ytb2bili)
-[![Platforms](https://img.shields.io/badge/platform-linux%2Famd64%20%7C%20linux%2Farm64-blue)](https://hub.docker.com/r/difyz9/ytb2bili)
+[![Docker Pulls](https://img.shields.io/docker/pulls/zhantaoli/ytb2bili)](https://hub.docker.com/r/zhantaoli/ytb2bili)
+[![Image Size](https://img.shields.io/docker/image-size/zhantaoli/ytb2bili/latest)](https://hub.docker.com/r/zhantaoli/ytb2bili)
+[![Platforms](https://img.shields.io/badge/platform-linux%2Famd64%20%7C%20linux%2Farm64-blue)](https://hub.docker.com/r/zhantaoli/ytb2bili)
 
 ---
 
@@ -16,10 +16,10 @@
 ```bash
 mkdir ytb2bili && cd ytb2bili
 
-curl -fsSL https://raw.githubusercontent.com/difyz9/ytb2bili-docker/main/config.toml \
+curl -fsSL https://raw.githubusercontent.com/ZhantaoLi/ytb2bili/main/config.toml.example \
      -o config.toml
 
-curl -fsSL https://raw.githubusercontent.com/difyz9/ytb2bili-docker/main/docker-compose.yml \
+curl -fsSL https://raw.githubusercontent.com/ZhantaoLi/ytb2bili/main/docker-compose.yml \
      -o docker-compose.yml
 ```
 
@@ -134,6 +134,11 @@ docker compose down -v
 
 ## 相关链接
 
-- 源码仓库：[difyz9/ytb2bili](https://github.com/ZhantaoLi/ytb2bili)
-- Docker 配置仓库：[difyz9/ytb2bili-docker](https://github.com/ZhantaoLi/ytb2bili-docker)
-- 问题反馈：[GitHub Issues](https://github.com/ZhantaoLi/ytb2bili/issues)
+- 源码仓库：[ZhantaoLi/ytb2bili](https://github.com/ZhantaoLi/ytb2bili)
+- GitHub Releases：https://github.com/ZhantaoLi/ytb2bili/releases
+- Docker Hub：https://hub.docker.com/r/zhantaoli/ytb2bili
+- 问题反馈：https://github.com/ZhantaoLi/ytb2bili/issues
+
+---
+
+> Forked from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili) with gratitude 🙏

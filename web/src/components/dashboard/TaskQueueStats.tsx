@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { RefreshCw, Clock, Play, CheckCircle, Upload, AlertCircle, Trash2, X } from 'lucide-react';
 
 interface Video {
@@ -39,7 +40,13 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
   const [detailedVideo, setDetailedVideo] = useState<Video | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteError, setDeleteError] = useState('');
+  const [mounted, setMounted] = useState(false);
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 删除相关状态
   const [confirmTarget, setConfirmTarget] = useState<Video | null>(null); // 待确认删除的任务
@@ -52,6 +59,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
   // 所见即所删——删哪条由前端按显式 ID 决定，后端只负责跳过运行中任务。
   const executeDelete = async (target: Video) => {
     setIsDeleting(true);
+    setDeleteError('');
     try {
       const response = await fetch('/api/v1/videos/batch-delete', {
         method: 'POST',
@@ -69,14 +77,18 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
         await fetchVideos();
         if (skipped > 0) alert(data.message);
       } else {
-        alert(`删除失败: ${data.message || '未知错误'}`);
+        setDeleteError(`删除失败: ${data.message || '未知错误'}`);
       }
     } catch (error) {
       console.error('删除任务失败:', error);
-      alert('删除请求失败，请检查后端服务');
+      setDeleteError('删除请求失败，请检查后端服务');
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleDelete = () => {
+    if (confirmTarget) executeDelete(confirmTarget);
   };
 
   useEffect(() => {
@@ -303,14 +315,14 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
               暂无任务数据
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="flex flex-col space-y-1 py-2">
               {paginatedVideos.map(video => {
                 const statusInfo = getStatusInfo(video.status);
                 const Icon = statusInfo.icon;
                 return (
                   <div key={video.id}>
                     <div
-                      className="p-4 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-b border-gray-200 dark:border-white/[0.02] last:border-0"
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors cursor-pointer mx-2 rounded-xl"
                       onClick={() => handleToggleDetails(video.id)}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -498,48 +510,67 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
         </div>
       </div>
 
-      {/* 删除确认弹窗：显示影响范围 */}
-      {confirmTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white dark:bg-[#131722]/90 backdrop-blur-xl rounded-xl shadow-xl w-full max-w-md border border-transparent dark:border-white/[0.1]">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-white/[0.05]">
-              <h3 className="text-base md:text-lg font-semibold text-red-600">确认删除</h3>
+      {/* 删除确认弹窗：使用 createPortal 渲染到 body，解决 z-index 和 backdrop-blur 遮挡及居中问题 */}
+      {mounted && confirmTarget && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pb-[10vh] bg-black/40 p-4">
+          <div className="bg-white dark:bg-[#131722]/95 backdrop-blur-xl rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] w-full max-w-md border border-gray-200 dark:border-white/[0.1] transform transition-all">
+            <div className="relative flex items-center justify-between p-5 border-b border-gray-100 dark:border-white/[0.05]">
+              <h3 className="text-base md:text-lg font-semibold text-red-600 dark:text-red-400">确认删除</h3>
               <button
                 onClick={() => !isDeleting && setConfirmTarget(null)}
-                className="text-gray-400 hover:text-gray-600 dark:text-gray-400"
+                className="text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/[0.05]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 space-y-3">
-              <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
-                此操作将删除任务记录和本地文件，不可恢复。
+            
+            <div className="p-5 space-y-4">
+              <p className="text-sm md:text-base text-gray-700 dark:text-gray-300">
+                此操作将同时删除记录和本地文件，不可恢复。
               </p>
-              <div className="bg-gray-50 dark:bg-white/[0.05] rounded p-3 text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between">
-                <span className="truncate mr-2">{confirmTarget.title || confirmTarget.video_id}</span>
-                <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded ${getStatusInfo(confirmTarget.status).color}`}>
+              <div className="bg-gray-50 dark:bg-[#1C2130] rounded-lg p-3 text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between border border-gray-100 dark:border-white/[0.02]">
+                <span className="truncate mr-2 font-medium">{confirmTarget.title || confirmTarget.video_id}</span>
+                <span className={`shrink-0 text-xs px-2 py-0.5 rounded ${getStatusInfo(confirmTarget.status).color}`}>
                   {getStatusInfo(confirmTarget.status).label}
                 </span>
               </div>
+              {deleteError && (
+                <div className="text-xs md:text-sm text-red-500 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg flex items-start space-x-2 border border-red-200 dark:border-red-500/20">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end space-x-2 p-4 border-t border-gray-200 dark:border-white/[0.05]">
+
+            <div className="relative p-5 flex justify-end space-x-3 border-t border-gray-100 dark:border-white/[0.05]">
               <button
                 onClick={() => setConfirmTarget(null)}
                 disabled={isDeleting}
-                className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-white/[0.05] hover:bg-gray-200 dark:hover:bg-white/[0.1] rounded disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-white/[0.05] hover:bg-gray-200 dark:hover:bg-white/[0.1] rounded-lg transition-colors"
               >
                 取消
               </button>
               <button
-                onClick={() => executeDelete(confirmTarget)}
+                onClick={handleDelete}
                 disabled={isDeleting}
-                className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 active:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500 dark:active:bg-red-700 rounded-lg transition-colors flex items-center space-x-2 shadow-sm shadow-red-500/20"
               >
-                {isDeleting ? '删除中...' : '确认删除'}
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                    <span>删除中...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 shrink-0" />
+                    <span>确认删除</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

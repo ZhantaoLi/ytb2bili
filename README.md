@@ -4,6 +4,8 @@
 
 `ytb2bili` is a workflow system for local video translation playback and YouTube-to-Bilibili publishing. It includes a web admin panel, task-chain orchestration, subtitle processing, AI copy generation, subtitle audio synthesis, synchronized A/V preview, Bilibili upload, and subtitle upload.
 
+> Forked from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili) with gratitude 🙏
+
 ## Key Features
 
 - Local video translation playback with translated subtitles and dubbed audio
