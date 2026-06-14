@@ -1,0 +1,138 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Cross-Platform Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build binaries
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          LDFLAGS="-s -w -X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME}"
+
+          mkdir -p dist
+
+          echo "Building Windows amd64..."
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/ytb2bili-windows-amd64.exe .
+
+          echo "Building Linux amd64..."
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/ytb2bili-linux-amd64 .
+
+          echo "Building Linux arm64..."
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/ytb2bili-linux-arm64 .
+
+          echo "Building macOS amd64..."
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/ytb2bili-darwin-amd64 .
+
+          echo "Building macOS arm64..."
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o dist/ytb2bili-darwin-arm64 .
+
+      - name: Create archives
+        run: |
+          cd dist
+
+          # Windows
+          zip ytb2bili-windows-amd64.zip ytb2bili-windows-amd64.exe
+
+          # Linux amd64
+          mkdir -p ytb2bili-linux-amd64
+          cp ytb2bili-linux-amd64 ytb2bili-linux-amd64/
+          tar czf ytb2bili-linux-amd64.tar.gz ytb2bili-linux-amd64
+
+          # Linux arm64
+          mkdir -p ytb2bili-linux-arm64
+          cp ytb2bili-linux-arm64 ytb2bili-linux-arm64/
+          tar czf ytb2bili-linux-arm64.tar.gz ytb2bili-linux-arm64
+
+          # macOS amd64
+          mkdir -p ytb2bili-darwin-amd64
+          cp ytb2bili-darwin-amd64 ytb2bili-darwin-amd64/
+          tar czf ytb2bili-darwin-amd64.tar.gz ytb2bili-darwin-amd64
+
+          # macOS arm64
+          mkdir -p ytb2bili-darwin-arm64
+          cp ytb2bili-darwin-arm64 ytb2bili-darwin-arm64/
+          tar czf ytb2bili-darwin-arm64.tar.gz ytb2bili-darwin-arm64
+
+          ls -lh *.zip *.tar.gz
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.zip *.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh release create "$VERSION" \
+            --title "Release $VERSION" \
+            --notes "## 🚀 Release $VERSION
+
+### 📦 下载
+
+| 平台 | 架构 | 下载链接 |
+|------|------|----------|
+| 🪟 Windows | x64 | [ytb2bili-windows-amd64.zip](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-windows-amd64.zip) |
+| 🐧 Linux | x64 | [ytb2bili-linux-amd64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-linux-amd64.tar.gz) |
+| 🐧 Linux | ARM64 | [ytb2bili-linux-arm64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-linux-arm64.tar.gz) |
+| 🍎 macOS | Intel | [ytb2bili-darwin-amd64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-darwin-amd64.tar.gz) |
+| 🍎 macOS | Apple Silicon | [ytb2bili-darwin-arm64.tar.gz](https://github.com/ZhantaoLi/ytb2bili/releases/download/$VERSION/ytb2bili-darwin-arm64.tar.gz) |
+
+### 📝 变更说明
+
+- Fork from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
+- 完整功能保持不变
+- 更新包路径为 github.com/ZhantaoLi/ytb2bili
+
+### 🐳 Docker
+
+\`\`\`bash
+docker pull zhantaoli/ytb2bili:latest
+\`\`\`
+
+---
+
+**完整文档**: [README.md](https://github.com/ZhantaoLi/ytb2bili/blob/main/README.md)" \
+            dist/ytb2bili-windows-amd64.zip \
+            dist/ytb2bili-linux-amd64.tar.gz \
+            dist/ytb2bili-linux-arm64.tar.gz \
+            dist/ytb2bili-darwin-amd64.tar.gz \
+            dist/ytb2ibili-darwin-arm64.tar.gz \
+            dist/checksums.txt
