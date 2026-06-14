@@ -143,7 +143,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">加载定时任务...</p>
+          <p className="text-gray-600 dark:text-gray-400">加载定时任务...</p>
         </div>
       </div>
     );
@@ -154,13 +154,13 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       {/* 标题栏 */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">定时上传管理</h2>
-          <p className="text-sm text-gray-600 mt-1">手动触发或查看自动上传任务</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">定时上传管理</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">手动触发或查看自动上传任务</p>
         </div>
         <button
           onClick={fetchVideos}
           disabled={refreshing}
-          className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           <span>刷新</span>
@@ -168,12 +168,12 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       </div>
 
       {/* 调度策略说明 */}
-      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+      <div className="bg-gradient-to-br from-blue-50 dark:from-blue-500/[0.08] to-indigo-50 dark:to-blue-500/[0.03] border border-blue-200 dark:border-white/[0.05] rounded-xl p-4 backdrop-blur-md">
         <div className="flex items-start space-x-3">
-          <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h3 className="font-medium text-blue-900 mb-2">自动上传策略</h3>
-            <div className="text-sm text-blue-800 space-y-1">
+            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">自动上传策略</h3>
+            <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
               <p>• <strong>视频上传</strong>：每小时自动上传1个准备就绪的视频到Bilibili</p>
               <p>• <strong>字幕上传</strong>：视频上传完成1小时后，自动上传对应的字幕文件</p>
               <p>• <strong>手动触发</strong>：您可以随时点击下方的&quot;立即上传&quot;按钮手动触发上传任务</p>
@@ -185,17 +185,17 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       {/* 视频上传任务 */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <Upload className="w-5 h-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center space-x-2">
+            <Upload className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             <span>视频上传队列</span>
-            <span className="text-sm font-normal text-gray-500">({videoUploadTasks.length} 个待上传)</span>
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({videoUploadTasks.length} 个待上传)</span>
           </h3>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] shadow-sm dark:shadow-none">
           {videoUploadTasks.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400">
+              <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
               <p>暂无待上传的视频</p>
               <p className="text-sm mt-1">所有准备就绪的视频将显示在这里</p>
             </div>
@@ -206,7 +206,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
                 const isExecuting = executingTasks.has(taskKey);
                 
                 return (
-                  <div key={task.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div key={task.id} className="p-4 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors border-b border-gray-200 dark:border-white/[0.02] last:border-0">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
@@ -258,17 +258,17 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       {/* 字幕上传任务 */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <Upload className="w-5 h-5 text-indigo-600" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center space-x-2">
+            <Upload className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             <span>字幕上传队列</span>
-            <span className="text-sm font-normal text-gray-500">({subtitleUploadTasks.length} 个待上传)</span>
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({subtitleUploadTasks.length} 个待上传)</span>
           </h3>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] shadow-sm dark:shadow-none">
           {subtitleUploadTasks.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400">
+              <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
               <p>暂无待上传的字幕</p>
               <p className="text-sm mt-1">视频上传完成1小时后，字幕任务将显示在这里</p>
             </div>
@@ -279,14 +279,14 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
                 const isExecuting = executingTasks.has(taskKey);
                 
                 return (
-                  <div key={task.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div key={task.id} className="p-4 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors border-b border-gray-200 dark:border-white/[0.02] last:border-0">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="font-medium text-gray-900">
+                          <h4 className="font-medium text-gray-900 dark:text-white">
                             {task.video.title || task.video.video_id}
                           </h4>
-                          <span className="text-xs px-2 py-1 rounded bg-cyan-100 text-cyan-700">
+                          <span className="text-xs px-2 py-1 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
                             视频已上传
                           </span>
                           {task.video.bili_bvid && (
@@ -300,7 +300,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
                             </a>
                           )}
                         </div>
-                        <div className="flex items-center space-x-6 text-xs text-gray-500">
+                        <div className="flex items-center space-x-6 text-xs text-gray-500 dark:text-gray-400">
                           <span>视频ID: {task.video.video_id}</span>
                           <span>视频上传: {new Date(task.video.updated_at).toLocaleString('zh-CN')}</span>
                         </div>
@@ -340,38 +340,38 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
 
       {/* 统计信息 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 backdrop-blur-md shadow-sm dark:shadow-none">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
+            <div className="p-2 bg-green-100 dark:bg-green-500/[0.15] rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="text-sm text-gray-600">准备就绪</div>
-              <div className="text-xl font-bold text-gray-900">{videoUploadTasks.length}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">准备就绪</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">{videoUploadTasks.length}</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 backdrop-blur-md shadow-sm dark:shadow-none">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-cyan-100 rounded-lg">
+            <div className="p-2 bg-cyan-100 dark:bg-cyan-500/[0.15] rounded-lg">
               <Upload className="w-5 h-5 text-cyan-600" />
             </div>
             <div>
-              <div className="text-sm text-gray-600">等待上传字幕</div>
-              <div className="text-xl font-bold text-gray-900">{subtitleUploadTasks.length}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">等待上传字幕</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">{subtitleUploadTasks.length}</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 backdrop-blur-md shadow-sm dark:shadow-none">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 bg-blue-100 dark:bg-blue-500/[0.15] rounded-lg">
               <Calendar className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-sm text-gray-600">总待处理任务</div>
-              <div className="text-xl font-bold text-gray-900">
+              <div className="text-sm text-gray-600 dark:text-gray-400">总待处理任务</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">
                 {videoUploadTasks.length + subtitleUploadTasks.length}
               </div>
             </div>
@@ -380,9 +380,9 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       </div>
 
       {/* 使用说明 */}
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-        <h4 className="font-medium text-gray-900 mb-3">使用说明</h4>
-        <div className="text-sm text-gray-600 space-y-2">
+      <div className="bg-gray-50 dark:bg-white/[0.02] rounded-xl p-4 border border-gray-200 dark:border-white/[0.05] backdrop-blur-md">
+        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">使用说明</h4>
+        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
           <p>1. <strong>自动上传</strong>：系统每5分钟检查一次，按照策略自动执行上传任务</p>
           <p>2. <strong>手动上传</strong>：点击&quot;立即上传&quot;按钮可以立即触发上传，无需等待自动调度</p>
           <p>3. <strong>上传限制</strong>：为避免被限流，建议手动上传时注意频率控制</p>
@@ -403,7 +403,7 @@ const PaginationControls = ({ currentPage, totalPages, onPageChange }: { current
       >
         上一页
       </button>
-      <span className="text-sm text-gray-700">
+      <span className="text-sm text-gray-700 dark:text-gray-300">
         第 {currentPage} 页 / 共 {totalPages} 页
       </span>
       <button

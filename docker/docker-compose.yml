@@ -30,7 +30,7 @@ services:
       - "8096:8096"
     volumes:
       - ./config.toml:/app/config.toml
-      - ./logs:/app/do
+      - ./logs:/app/logs
       - ./downloads:/app/downloads
     environment:
       - TZ=Asia/Shanghai

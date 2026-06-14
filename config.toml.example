@@ -53,6 +53,11 @@ ytdlp_path = "/usr/local/bin/yt-dlp"
 # ffmpeg 可执行文件路径（可选，默认从 PATH 查找）
 ffmpeg_path = "/usr/local/bin/ffmpeg"
 
+# 自动上传开关（默认关闭）
+# false = 视频处理到就绪态（status=200）后停止，需手动上传
+# true  = 调度器每 5 分钟自动上传就绪态视频到 Bilibili
+auto_upload = false
+
 
 # 微软语音服务配置（可选，用于旧版翻译功能）
 # speech_key = "your_azure_speech_key"

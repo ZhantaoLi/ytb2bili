@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <body className="min-h-screen bg-gray-50">
+      <body className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
         <RootLayoutClient>
           {children}
         </RootLayoutClient>

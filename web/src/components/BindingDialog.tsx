@@ -230,18 +230,18 @@ export default function BindingDialog({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-xl transition-all">
                 {/* 头部 */}
-                <div className="flex items-center justify-between mb-6">
-                  <Dialog.Title className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <Dialog.Title className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                     <QrCodeIcon className="h-5 w-5 text-blue-600" />
                     绑定 {platformName} 账号
                   </Dialog.Title>
                   <button
                     onClick={handleClose}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
                 </div>
 
@@ -252,7 +252,7 @@ export default function BindingDialog({
                     {status === 'loading' ? (
                       <div className="flex flex-col items-center gap-3">
                         <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
-                        <p className="text-sm text-gray-600">{message}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{message}</p>
                       </div>
                     ) : status === 'error' ? (
                       <div className="flex flex-col items-center gap-3">
@@ -299,10 +299,10 @@ export default function BindingDialog({
                             className="rounded-lg"
                           />
                         </div>
-                        <p className="text-sm text-gray-600 mt-4 text-center">{message}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 text-center">{message}</p>
                         
                         {/* 倒计时 */}
-                        <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
+                        <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
                           <AlertCircle className="h-4 w-4" />
                           <span>二维码有效期: {formatCountdown(countdown)}</span>
                         </div>
@@ -312,9 +312,9 @@ export default function BindingDialog({
 
                   {/* 底部提示 */}
                   {(status === 'ready' || status === 'pending') && (
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                      <h4 className="text-sm font-medium text-blue-900 mb-2">绑定步骤：</h4>
-                      <ol className="text-xs text-blue-800 space-y-1.5 pl-4 list-decimal">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800/50">
+                      <h4 className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">绑定步骤：</h4>
+                      <ol className="text-xs text-blue-800 dark:text-blue-400 space-y-1.5 pl-4 list-decimal">
                         <li>打开 {platformName} App</li>
                         <li>使用扫一扫功能扫描上方二维码</li>
                         <li>在 App 中确认登录授权</li>
@@ -329,7 +329,7 @@ export default function BindingDialog({
                   <div className="mt-6 flex gap-3">
                     <button
                       onClick={handleClose}
-                      className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
                     >
                       取消
                     </button>

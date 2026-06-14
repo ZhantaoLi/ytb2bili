@@ -54,8 +54,8 @@ export default function SettingsPage() {
   };
 
   return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-[#131722]/80 backdrop-blur-xl rounded-lg shadow-md border border-transparent dark:border-white/[0.05]">
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/[0.05]">
           <div className="flex items-center space-x-2 md:space-x-3">
             <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             <h2 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">设置</h2>
@@ -64,7 +64,7 @@ export default function SettingsPage() {
 
         <div className="p-4 md:p-6">
           <div className="space-y-3 md:space-y-4">
-            <label className="flex items-center justify-between bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
+            <label className="flex items-center justify-between bg-gray-50 dark:bg-white/[0.02] p-4 rounded-md border border-transparent dark:border-white/[0.05] backdrop-blur-md">
               <div>
                 <div className="text-sm font-medium">自动上传</div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -81,10 +81,10 @@ export default function SettingsPage() {
             </label>
 
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md text-sm text-red-700 dark:text-red-400">{error}</div>
+              <div className="bg-gradient-to-br from-red-50 dark:from-red-500/[0.08] to-rose-50 dark:to-red-500/[0.03] p-4 rounded-md text-sm text-red-700 dark:text-red-400 border border-red-100 dark:border-white/[0.05] backdrop-blur-md">{error}</div>
             )}
 
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
+            <div className="bg-gradient-to-br from-blue-50 dark:from-blue-500/[0.08] to-indigo-50 dark:to-blue-500/[0.03] p-4 rounded-md border border-blue-100 dark:border-white/[0.05] backdrop-blur-md">
               <div className="text-sm text-blue-800 dark:text-blue-300">
                 <strong>提示：</strong> 该开关实时生效，无需重启服务。手动上传不受此开关影响。
               </div>

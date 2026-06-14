@@ -233,12 +233,12 @@ export default function AccountsPage() {
           </h3>
           <div className="min-h-[200px]">
             {isChecking ? (
-              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border shadow-sm">
+              <div className="text-center py-12 bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-lg border border-transparent dark:border-white/[0.05] shadow-sm">
                 <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent text-gray-400 mb-2" />
                 <p className="text-gray-600 dark:text-gray-400 text-sm">加载中...</p>
               </div>
             ) : accounts.filter(a => a.connected).length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-dashed shadow-sm">
+              <div className="text-center py-12 bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-lg border border-dashed border-gray-200 dark:border-white/[0.05] shadow-sm">
                 <Link2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-600 dark:text-gray-400 mb-1">暂无绑定账号</p>
                 <p className="text-xs text-gray-400">请在下方选择平台进行绑定</p>
@@ -246,7 +246,7 @@ export default function AccountsPage() {
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:p-6">
               {accounts.filter(a => a.connected).map((account) => (
-                <div key={account.platform} className="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
+                <div key={account.platform} className="group relative bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] hover:border-blue-300 dark:hover:border-blue-500/50 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
                   {/* 背景装饰 */}
                   <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full ${account.color} opacity-5 blur-3xl group-hover:opacity-10 transition-opacity pointer-events-none`}></div>
                   
@@ -306,14 +306,14 @@ export default function AccountsPage() {
                             </div>
                           </div>
                         )}
-                        <div className="absolute bottom-0 right-0 bg-white dark:bg-gray-800 rounded-full p-1 shadow-md border border-gray-50">
+                        <div className="absolute bottom-0 right-0 bg-white dark:bg-gray-800 rounded-full p-1 shadow-md border border-gray-50 dark:border-gray-700">
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         </div>
                       </div>
                       
                       <div className="text-center w-full px-2">
                         <h4 className="font-bold text-gray-900 dark:text-white truncate text-base md:text-lg" title={account.username}>{account.username}</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium bg-gray-50 dark:bg-gray-900 inline-block px-2 py-0.5 rounded-full border border-gray-100">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium bg-gray-50 dark:bg-gray-900 inline-block px-2 py-0.5 rounded-full border border-gray-100 dark:border-gray-700">
                           绑定于 {account.connectedAt ? new Date(account.connectedAt).toLocaleDateString('zh-CN') : '刚刚'}
                         </p>
                       </div>
@@ -321,7 +321,7 @@ export default function AccountsPage() {
                   </div>
 
                   {/* 底部操作栏 */}
-                  <div className="bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 px-5 py-3 flex items-center justify-between mt-auto">
+                  <div className="bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-100 dark:border-gray-700 px-5 py-3 flex items-center justify-between mt-auto">
                     <div className="flex flex-col">
                        <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Status</span>
                        <span className="text-xs font-bold text-green-600 flex items-center gap-1">
@@ -331,7 +331,7 @@ export default function AccountsPage() {
                     
                     <button 
                       onClick={() => handleDisconnect(account)} 
-                      className="group/btn relative overflow-hidden bg-white dark:bg-gray-800 hover:bg-red-50 text-gray-500 dark:text-gray-400 hover:text-red-600 border border-gray-200 dark:border-gray-700 hover:border-red-200 px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-1.5 shadow-sm hover:shadow"
+                      className="group/btn relative overflow-hidden bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-800/50 px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-1.5 shadow-sm hover:shadow"
                       title="解绑账号"
                     >
                        <Unlink className="w-3.5 h-3.5 transition-transform group-hover/btn:rotate-45" />
@@ -358,7 +358,7 @@ export default function AccountsPage() {
               return (
                 <div
                   key={account.platform}
-                  className={`relative group bg-white dark:bg-gray-800 rounded-xl border p-6 transition-all duration-300 ${
+                  className={`relative group bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] p-6 transition-all duration-300 ${
                     !account.isSupported 
                       ? 'opacity-70 grayscale-[0.5] hover:opacity-100 hover:grayscale-0' 
                       : 'hover:border-blue-400 hover:shadow-lg hover:-translate-y-1'
@@ -374,12 +374,12 @@ export default function AccountsPage() {
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">{account.name}</h3>
                         {!account.isSupported && (
-                          <span className="text-[10px] bg-gray-100 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700">
+                          <span className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-600">
                             开发中
                           </span>
                         )}
                         {account.platform === 'bilibili' && (
-                          <span className="text-[10px] bg-pink-50 text-pink-600 px-2 py-0.5 rounded-full border border-pink-100">
+                          <span className="text-[10px] bg-pink-50 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 px-2 py-0.5 rounded-full border border-pink-100 dark:border-pink-800/50">
                             热门
                           </span>
                         )}
@@ -421,47 +421,47 @@ export default function AccountsPage() {
 
         {/* 帮助与提示 - 双栏布局 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:p-6">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-            <h4 className="font-semibold text-blue-900 flex items-center gap-2 mb-4">
-              <Info className="h-5 w-5 text-blue-600" />
+          <div className="bg-gradient-to-br from-blue-50 dark:from-white/[0.03] to-indigo-50 dark:to-white/[0.01] rounded-xl p-6 border border-blue-100 dark:border-white/[0.05] shadow-sm dark:shadow-none backdrop-blur-md">
+            <h4 className="font-semibold text-blue-900 dark:text-gray-200 flex items-center gap-2 mb-4">
+              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               快速指南
             </h4>
             <ul className="space-y-3">
-              <li className="flex items-start text-sm text-blue-800/80">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">1</span>
+              <li className="flex items-start text-sm text-blue-800/80 dark:text-gray-400">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 dark:bg-white/10 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">1</span>
                 <span>选择您想要分发视频的目标平台，点击&ldquo;立即绑定&rdquo;</span>
               </li>
-              <li className="flex items-start text-sm text-blue-800/80">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">2</span>
+              <li className="flex items-start text-sm text-blue-800/80 dark:text-gray-400">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 dark:bg-white/10 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">2</span>
                 <span>按照弹窗指引完成扫码或授权登录（YouTube需科学上网）</span>
               </li>
-              <li className="flex items-start text-sm text-blue-800/80">
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">3</span>
+              <li className="flex items-start text-sm text-blue-800/80 dark:text-gray-400">
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 dark:bg-white/10 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">3</span>
                 <span>绑定成功后，即可在视频列表页选择一键发布</span>
               </li>
             </ul>
           </div>
 
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-100">
-            <h4 className="font-semibold text-amber-900 flex items-center gap-2 mb-4">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
+          <div className="bg-gradient-to-br from-amber-50 dark:from-amber-500/[0.08] to-orange-50 dark:to-orange-500/[0.03] rounded-xl p-6 border border-amber-100 dark:border-white/[0.05] shadow-sm dark:shadow-none backdrop-blur-md">
+            <h4 className="font-semibold text-amber-900 dark:text-amber-400 flex items-center gap-2 mb-4">
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
               注意事项
             </h4>
             <ul className="space-y-2.5">
-              <li className="flex items-start text-sm text-amber-800/80">
-                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+              <li className="flex items-start text-sm text-amber-800/80 dark:text-amber-500/90">
+                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 flex-shrink-0"></span>
                 <span>B站二维码有效期为5分钟，请尽快完成扫码</span>
               </li>
-              <li className="flex items-start text-sm text-amber-800/80">
-                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+              <li className="flex items-start text-sm text-amber-800/80 dark:text-amber-500/90">
+                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 flex-shrink-0"></span>
                 <span>YouTube授权仅请求必要的发布权限，保障账号安全</span>
               </li>
-              <li className="flex items-start text-sm text-amber-800/80">
-                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+              <li className="flex items-start text-sm text-amber-800/80 dark:text-amber-500/90">
+                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 flex-shrink-0"></span>
                 <span>不同平台的Cookie有效期不同，失效后需重新绑定</span>
               </li>
-              <li className="flex items-start text-sm text-amber-800/80">
-                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0"></span>
+              <li className="flex items-start text-sm text-amber-800/80 dark:text-amber-500/90">
+                <span className="mr-2 mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 flex-shrink-0"></span>
                 <span>解绑账号不会删除您的历史数据，可随时重新绑定</span>
               </li>
             </ul>

@@ -154,14 +154,14 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400';
       case 'failed':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400';
       case 'running':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400';
       case 'pending':
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
 
@@ -267,8 +267,8 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
       </div>
 
       {/* 标签页 */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <div className="flex space-x-8">
+      <div className="border-b border-gray-200 dark:border-white/[0.05]">
+        <div className="flex space-x-4 md:space-x-8 overflow-x-auto whitespace-nowrap scrollbar-hide pb-1">
           {tabs.map(tab => (
             <button
               key={tab.key}
@@ -297,7 +297,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">视频处理任务链</h3>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/[0.05] shadow-sm dark:shadow-none">
           {paginatedVideos.length === 0 ? (
             <div className="p-12 text-center text-gray-500 dark:text-gray-400">
               暂无任务数据
@@ -310,16 +310,16 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
                 return (
                   <div key={video.id}>
                     <div
-                      className="p-4 hover:bg-gray-50 dark:bg-gray-900 transition-colors cursor-pointer"
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-b border-gray-200 dark:border-white/[0.02] last:border-0"
                       onClick={() => handleToggleDetails(video.id)}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h4 className="font-medium text-gray-900 dark:text-white">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900 dark:text-white truncate">
                               {video.title || video.video_id}
                             </h4>
-                            <span className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${statusInfo.color}`}>
+                            <span className={`flex-shrink-0 flex items-center space-x-1 text-[10px] sm:text-xs px-2 py-1 rounded ${statusInfo.color}`}>
                               <Icon className="w-3 h-3" />
                               <span>{statusInfo.label}</span>
                             </span>
@@ -334,16 +334,16 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
                               </a>
                             )}
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-3">
+                          <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
                             {getStageDescription(video.status)}
                           </p>
-                          <div className="flex items-center space-x-6 text-xs text-gray-500 dark:text-gray-400">
-                            <span>视频ID: {video.video_id}</span>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                            <span className="truncate">视频ID: {video.video_id}</span>
                             <span>创建: {new Date(video.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                            <span>更新: {new Date(video.updated_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="hidden sm:inline">更新: {new Date(video.updated_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
-                        <div className="ml-4 flex items-center space-x-1">
+                        <div className="flex items-center justify-end space-x-2 sm:ml-4 flex-shrink-0">
                           <button
                             className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           >
@@ -365,7 +365,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
                       </div>
                     </div>
                     {expandedVideoId === video.id && (
-                      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                      <div className="p-4 border-t border-gray-200 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
                         {isDetailLoading ? (
                           <div className="text-center text-gray-500 dark:text-gray-400">加载任务步骤...</div>
                         ) : detailedVideo && detailedVideo.task_steps ? (
@@ -392,7 +392,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:bg-gray-900 disabled:opacity-50"
+            className="px-3 py-1 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-white/[0.02] border border-gray-300 dark:border-white/[0.05] rounded-md hover:bg-gray-50 dark:hover:bg-white/[0.05] disabled:opacity-50"
           >
             上一页
           </button>
@@ -402,7 +402,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:bg-gray-900 disabled:opacity-50"
+            className="px-3 py-1 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-white/[0.02] border border-gray-300 dark:border-white/[0.05] rounded-md hover:bg-gray-50 dark:hover:bg-white/[0.05] disabled:opacity-50"
           >
             下一页
           </button>
@@ -412,7 +412,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
       {/* 自动化调度说明 */}
       <div>
         <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-4">自动化调度策略</h3>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05]">
           <div className="p-6 space-y-3 md:space-y-4">
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -478,21 +478,21 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
 
       {/* 统计汇总 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 shadow-sm dark:shadow-none">
           <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1">总任务数</div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{videos.length}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 shadow-sm dark:shadow-none">
           <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1">进行中</div>
           <div className="text-2xl font-bold text-blue-600">
             {categories.processing.length + categories.uploading.length + categories.uploaded.length}
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 shadow-sm dark:shadow-none">
           <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1">已完成</div>
           <div className="text-2xl font-bold text-green-600">{categories.completed.length}</div>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05] p-4 shadow-sm dark:shadow-none">
           <div className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-1">失败</div>
           <div className="text-2xl font-bold text-red-600">{categories.failed.length}</div>
         </div>
@@ -501,8 +501,8 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
       {/* 删除确认弹窗：显示影响范围 */}
       {confirmTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-[#131722]/90 backdrop-blur-xl rounded-xl shadow-xl w-full max-w-md mx-4 border border-transparent dark:border-white/[0.1]">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-white/[0.05]">
               <h3 className="text-base md:text-lg font-semibold text-red-600">删除任务</h3>
               <button
                 onClick={() => !isDeleting && setConfirmTarget(null)}
@@ -515,18 +515,18 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
               <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300">
                 此操作将<span className="font-semibold text-red-600">同时删除记录和本地文件</span>，<span className="font-semibold text-red-600">不可恢复</span>。
               </p>
-              <div className="bg-gray-50 dark:bg-gray-900 rounded p-3 text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between">
+              <div className="bg-gray-50 dark:bg-white/[0.05] rounded p-3 text-xs md:text-sm text-gray-600 dark:text-gray-400 flex items-center justify-between">
                 <span className="truncate mr-2">{confirmTarget.title || confirmTarget.video_id}</span>
                 <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded ${getStatusInfo(confirmTarget.status).color}`}>
                   {getStatusInfo(confirmTarget.status).label}
                 </span>
               </div>
             </div>
-            <div className="flex justify-end space-x-2 p-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end space-x-2 p-4 border-t border-gray-200 dark:border-white/[0.05]">
               <button
                 onClick={() => setConfirmTarget(null)}
                 disabled={isDeleting}
-                className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-50"
+                className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-white/[0.05] hover:bg-gray-200 dark:hover:bg-white/[0.1] rounded disabled:opacity-50"
               >
                 取消
               </button>
@@ -549,23 +549,23 @@ const TaskStepDetail = ({ steps, onRetry }: { steps: TaskStep[], onRetry: (stepN
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400';
       case 'failed':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400';
       case 'running':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400';
       case 'pending':
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 dark:bg-white/[0.05] dark:text-gray-300';
     }
   };
 
   return (
     <div className="space-y-3">
-      <h5 className="font-semibold text-gray-800">任务步骤</h5>
+      <h5 className="font-semibold text-gray-800 dark:text-gray-200">任务步骤</h5>
       <ul className="space-y-2">
         {steps.sort((a, b) => a.step_order - b.step_order).map(step => (
-          <li key={step.step_name} className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <li key={step.step_name} className="p-3 bg-white dark:bg-white/[0.02] backdrop-blur-md rounded-xl border border-gray-200 dark:border-white/[0.05]">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
@@ -581,7 +581,7 @@ const TaskStepDetail = ({ steps, onRetry }: { steps: TaskStep[], onRetry: (stepN
               {step.can_retry && (
                 <button
                   onClick={() => onRetry(step.step_name)}
-                  className="px-3 py-1 text-xs text-blue-600 bg-blue-100 hover:bg-blue-200 rounded"
+                  className="px-3 py-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800 rounded"
                 >
                   重试
                 </button>

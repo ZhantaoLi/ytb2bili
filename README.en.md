@@ -14,6 +14,10 @@ Video tutorial: https://www.bilibili.com/video/BV1tCRTBBEJo
 - AI integrations for translation, title, description, tag generation, and dubbed audio synthesis
 - Bilibili integration with QR-code login, video submission, subtitle upload, and account management
 - Modern web admin built with Go and Next.js
+  - Dark mode support with persistent theme preference
+  - Mobile-responsive design for all screen sizes
+  - Auto-upload toggle for flexible upload workflow
+  - Task history management with deletion capability
 
 ## 5-Minute Docker Deployment
 

@@ -74,6 +74,12 @@ func (h *ChainTaskHandler) SetUp() {
 
 			// 执行重试步骤
 			for _, step := range retrySteps {
+				// 如果是上传步骤且自动上传开关关闭，跳过
+				if step.StepName == "上传到Bilibili" && !h.App.Config.AutoUpload {
+					h.App.Logger.Infof("⏸️ 跳过重试上传步骤（自动上传已关闭）: %s", step.VideoID)
+					continue
+				}
+
 				h.App.Logger.Infof("🔄 开始重试步骤: %s - %s", step.VideoID, step.StepName)
 				if err := h.RunSingleTaskStep(step.VideoID, step.StepName); err != nil {
 					h.App.Logger.Errorf("重试步骤失败: %v", err)

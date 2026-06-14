@@ -47,10 +47,10 @@ export default function ExtensionPage() {
   return (
       <div className="space-y-6">
         {/* 插件介绍 */}
-        <div className="bg-gradient-to-r from-purple-50 dark:from-purple-900/30 to-pink-50 dark:to-pink-900/30 rounded-lg border border-purple-200 dark:border-purple-700 p-4 md:p-6">
+        <div className="bg-white dark:bg-[#131722]/80 backdrop-blur-xl rounded-xl shadow-md border border-transparent dark:border-white/[0.05] p-4 md:p-6">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
-              <Puzzle className="w-8 h-8 text-purple-600" />
+              <Puzzle className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -63,7 +63,7 @@ export default function ExtensionPage() {
                 <button
                   onClick={handleDownloadExtension}
                   disabled={isDownloading}
-                  className="flex items-center justify-center px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center justify-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 >
                   {isDownloading ? (
                     <>
@@ -81,7 +81,7 @@ export default function ExtensionPage() {
                   href="https://github.com/difyz9/ytb2bili_extension"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center px-6 py-2 border border-purple-300 text-purple-700 rounded-md hover:bg-purple-50 transition-colors"
+                  className="flex items-center justify-center px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-colors"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   GitHub 项目
@@ -92,8 +92,8 @@ export default function ExtensionPage() {
         </div>
 
         {/* 功能特性 */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-[#131722]/80 backdrop-blur-xl rounded-xl shadow-md border border-transparent dark:border-white/[0.05]">
+          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/[0.05]">
             <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">插件功能</h3>
           </div>
           <div className="p-4 md:p-6">
@@ -134,14 +134,14 @@ export default function ExtensionPage() {
         </div>
 
         {/* 安装教程 */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-[#131722]/80 backdrop-blur-xl rounded-xl shadow-md border border-transparent dark:border-white/[0.05]">
+          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/[0.05]">
             <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">安装教程</h3>
           </div>
           <div className="p-4 md:p-6">
             <div className="space-y-3 md:space-y-4">
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-500/[0.15] text-blue-600 dark:text-blue-400 border border-transparent dark:border-blue-500/[0.2] rounded-full flex items-center justify-center text-sm font-medium">
                   1
                 </div>
                 <div>
@@ -151,7 +151,7 @@ export default function ExtensionPage() {
               </div>
               
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-500/[0.15] text-blue-600 dark:text-blue-400 border border-transparent dark:border-blue-500/[0.2] rounded-full flex items-center justify-center text-sm font-medium">
                   2
                 </div>
                 <div>
@@ -161,17 +161,17 @@ export default function ExtensionPage() {
               </div>
               
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-500/[0.15] text-blue-600 dark:text-blue-400 border border-transparent dark:border-blue-500/[0.2] rounded-full flex items-center justify-center text-sm font-medium">
                   3
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">打开扩展管理页面</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">在 Chrome 浏览器中访问 <code className="bg-gray-100 px-1 rounded">chrome://extensions/</code></p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">在 Chrome 浏览器中访问 <code className="bg-gray-100 dark:bg-white/[0.05] border border-transparent dark:border-white/[0.1] px-1.5 py-0.5 rounded text-gray-800 dark:text-gray-300">chrome://extensions/</code></p>
                 </div>
               </div>
               
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-500/[0.15] text-blue-600 dark:text-blue-400 border border-transparent dark:border-blue-500/[0.2] rounded-full flex items-center justify-center text-sm font-medium">
                   4
                 </div>
                 <div>
@@ -181,7 +181,7 @@ export default function ExtensionPage() {
               </div>
               
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-500/[0.15] text-blue-600 dark:text-blue-400 border border-transparent dark:border-blue-500/[0.2] rounded-full flex items-center justify-center text-sm font-medium">
                   5
                 </div>
                 <div>
@@ -191,12 +191,12 @@ export default function ExtensionPage() {
               </div>
             </div>
 
-            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 dark:from-amber-500/[0.08] to-orange-50 dark:to-orange-500/[0.03] border border-amber-100 dark:border-white/[0.05] shadow-sm dark:shadow-none backdrop-blur-md rounded-xl">
               <div className="flex items-start space-x-2">
-                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-sm font-medium text-amber-800">注意事项</h4>
-                  <p className="text-sm text-amber-700 mt-1">
+                  <h4 className="text-sm font-medium text-amber-800 dark:text-amber-400">注意事项</h4>
+                  <p className="text-sm text-amber-700 dark:text-amber-500/90 mt-1">
                     由于插件还未上架应用商店，需要手动安装。如果遇到问题，请查看 GitHub 项目页面的详细说明。
                   </p>
                 </div>
