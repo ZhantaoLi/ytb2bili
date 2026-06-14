@@ -1,19 +1,19 @@
 "use client";
 
 import { getApiBaseUrl, apiFetch } from '@/lib/api';
-import { Plus, Youtube, Video, Globe, AlertCircle, CheckCircle, Upload, File } from 'lucide-react';
+import { Plus, Youtube, Video, AlertCircle, CheckCircle, Upload, ListChecks, Clock, Puzzle, Link2, Twitter, LinkIcon, DownloadCloud, Lightbulb } from 'lucide-react';
 import { useState, useRef } from 'react';
 
 export default function HomePage() {
   // Segment 控制状态
   const [activeTab, setActiveTab] = useState<'url' | 'upload'>('url');
-  
+
   // URL 提交状态
   const [videoUrl, setVideoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
-  
+
   // 本地视频上传状态
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -90,7 +90,7 @@ export default function HomePage() {
         setUploadMessage('不支持的文件格式，请上传视频文件（mp4, webm, mov, avi, mkv等）');
         return;
       }
-      
+
       // 检查文件大小（限制为2GB）
       const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
       if (file.size > maxSize) {
@@ -98,7 +98,7 @@ export default function HomePage() {
         setUploadMessage('文件太大，最大支持2GB的视频文件');
         return;
       }
-      
+
       setSelectedFile(file);
       setUploadMessage('');
       setUploadMessageType('');
@@ -127,7 +127,7 @@ export default function HomePage() {
 
       // 使用 XMLHttpRequest 以便跟踪上传进度
       const xhr = new XMLHttpRequest();
-      
+
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100);
@@ -179,37 +179,37 @@ export default function HomePage() {
   };
 
   return (
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-4 md:space-y-8 px-4 md:px-0">
         {/* 主要功能区域 - Segment 切换面板 */}
-        <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-xl overflow-hidden border border-blue-100/50">
+        <div className="bg-gradient-to-br from-white dark:from-gray-800 to-blue-50/30 dark:to-gray-800/50 rounded-2xl shadow-xl overflow-hidden border border-blue-100/50 dark:border-gray-700">
           {/* Segment Control 标题栏 */}
           <div className="relative">
             {/* 装饰性渐变背景 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-[0.02]"></div>
-            
-            <div className="relative px-8 pt-6 pb-6">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-[0.02] dark:opacity-[0.05]"></div>
+
+            <div className="relative px-4 md:px-8 pt-4 md:pt-6 pb-4 md:pb-6">
               {/* Segment Control 切换器 */}
               <div className="flex justify-center">
-                <div className="inline-flex bg-gray-100 rounded-lg p-1">
+                <div className="inline-flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                   <button
                     onClick={() => setActiveTab('url')}
-                    className={`px-6 py-2.5 rounded-md font-semibold transition-all ${
+                    className={`px-4 md:px-6 py-2 md:py-2.5 rounded-md font-semibold transition-all ${
                       activeTab === 'url'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white dark:bg-gray-800 dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 dark:text-gray-300 hover:text-gray-900 dark:text-white dark:hover:text-white'
                     }`}
                   >
                     <div className="flex items-center space-x-2">
-                      <Globe className="w-4 h-4" />
+                      <LinkIcon className="w-4 h-4" />
                       <span>在线链接</span>
                     </div>
                   </button>
                   <button
                     onClick={() => setActiveTab('upload')}
-                    className={`px-6 py-2.5 rounded-md font-semibold transition-all ${
+                    className={`px-4 md:px-6 py-2 md:py-2.5 rounded-md font-semibold transition-all ${
                       activeTab === 'upload'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white dark:bg-gray-800 dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 dark:text-gray-300 hover:text-gray-900 dark:text-white dark:hover:text-white'
                     }`}
                   >
                     <div className="flex items-center space-x-2">
@@ -228,10 +228,10 @@ export default function HomePage() {
             {activeTab === 'url' && (
               <div className="space-y-6 animate-fade-in">
                 <div className="max-w-3xl mx-auto">
-                  
+
                   <form onSubmit={handleSubmitUrl} className="space-y-6">
                     <div>
-                      <label htmlFor="video-url" className="block text-sm font-semibold text-gray-700 mb-3">
+                      <label htmlFor="video-url" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                         视频链接
                       </label>
                       <div className="relative group">
@@ -242,7 +242,7 @@ export default function HomePage() {
                           value={videoUrl}
                           onChange={(e) => setVideoUrl(e.target.value)}
                           placeholder="请输入视频链接，如：https://www.youtube.com/watch?v=..."
-                          className="relative w-full px-5 py-4 pr-32 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white/50 backdrop-blur-sm text-base"
+                          className="relative w-full px-5 py-4 pr-32 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-white dark:bg-gray-800/50 backdrop-blur-sm text-base"
                           disabled={isSubmitting}
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-4">
@@ -277,7 +277,7 @@ export default function HomePage() {
                   {/* 提交结果消息 */}
                   {submitMessage && (
                     <div className={`mt-6 p-5 rounded-xl flex items-center shadow-lg ${
-                      messageType === 'success' 
+                      messageType === 'success'
                         ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 text-green-800'
                         : 'bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-200 text-red-800'
                     }`}>
@@ -292,27 +292,27 @@ export default function HomePage() {
                 </div>
 
                 {/* 支持的平台展示 */}
-                <div className="max-w-3xl mx-auto bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-100 rounded-xl p-6 shadow-md">
-                  <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center">
+                <div className="max-w-3xl mx-auto bg-gradient-to-br from-blue-50 dark:from-gray-800 to-indigo-50 dark:to-gray-800/80 border-2 border-blue-100 dark:border-gray-700 dark:border-gray-700 rounded-xl p-6 shadow-md">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center">
                     <div className="w-1.5 h-5 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full mr-2"></div>
                     支持的平台
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-3 bg-white/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white/80 transition-colors">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
+                    <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white dark:hover:bg-gray-700/80 transition-colors">
                       <Youtube className="w-5 h-5 text-red-600" />
-                      <span className="text-sm font-medium text-gray-700">YouTube</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">YouTube</span>
                     </div>
-                    <div className="flex items-center space-x-3 bg-white/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white/80 transition-colors">
+                    <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white dark:hover:bg-gray-700/80 transition-colors">
                       <Video className="w-5 h-5 text-blue-600" />
-                      <span className="text-sm font-medium text-gray-700">Bilibili</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Bilibili</span>
                     </div>
-                    <div className="flex items-center space-x-3 bg-white/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white/80 transition-colors">
-                      <Globe className="w-5 h-5 text-blue-400" />
-                      <span className="text-sm font-medium text-gray-700">Twitter/X</span>
+                    <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white dark:hover:bg-gray-700/80 transition-colors">
+                      <Twitter className="w-5 h-5 text-blue-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Twitter/X</span>
                     </div>
-                    <div className="flex items-center space-x-3 bg-white/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white/80 transition-colors">
+                    <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/60 backdrop-blur-sm px-4 py-3 rounded-lg hover:bg-white dark:hover:bg-gray-700/80 transition-colors">
                       <Video className="w-5 h-5 text-purple-600" />
-                      <span className="text-sm font-medium text-gray-700">TikTok</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">TikTok</span>
                     </div>
                   </div>
                 </div>
@@ -338,13 +338,13 @@ export default function HomePage() {
                     <label
                       htmlFor="video-file-input"
                       className={`relative flex flex-col items-center justify-center w-full h-72 border-3 border-dashed rounded-2xl cursor-pointer transition-all group overflow-hidden ${
-                        isUploading 
-                          ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                        isUploading
+                          ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 cursor-not-allowed'
                           : 'border-blue-300 hover:border-blue-500 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 hover:from-blue-50 hover:to-indigo-50'
                       }`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      
+
                       <div className="relative flex flex-col items-center justify-center py-8">
                         <div className="mb-6 transform group-hover:scale-110 transition-transform duration-300">
                           <div className="relative">
@@ -354,18 +354,18 @@ export default function HomePage() {
                         </div>
                         {selectedFile ? (
                           <>
-                            <p className="mb-3 text-xl font-bold text-blue-600">{selectedFile.name}</p>
-                            <p className="text-base text-gray-600 font-medium">大小: {formatFileSize(selectedFile.size)}</p>
+                            <p className="mb-3 text-lg md:text-xl font-bold text-blue-600">{selectedFile.name}</p>
+                            <p className="text-base text-gray-600 dark:text-gray-400 font-medium">大小: {formatFileSize(selectedFile.size)}</p>
                           </>
                         ) : (
                           <>
                             <p className="mb-3 text-base font-bold text-gray-800">
                               点击选择文件或拖拽到此处
                             </p>
-                            <p className="text-sm text-gray-600 font-medium mb-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium mb-2">
                               支持格式: MP4, WebM, MOV, AVI, MKV, FLV
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               最大文件大小: 2GB
                             </p>
                           </>
@@ -392,16 +392,16 @@ export default function HomePage() {
                   {/* 上传进度条 */}
                   {isUploading && (
                     <div className="mb-6 space-y-3 bg-blue-50 border-2 border-blue-200 rounded-xl p-5">
-                      <div className="flex justify-between text-sm font-semibold text-gray-700">
+                      <div className="flex justify-between text-sm font-semibold text-gray-700 dark:text-gray-300">
                         <span>上传进度</span>
                         <span className="text-blue-600">{uploadProgress}%</span>
                       </div>
                       <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                        <div 
+                        <div
                           className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-500 h-4 rounded-full transition-all duration-300 shadow-lg"
                           style={{ width: `${uploadProgress}%` }}
                         >
-                          <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                          <div className="absolute inset-0 bg-white dark:bg-gray-800/20 animate-pulse"></div>
                         </div>
                       </div>
                     </div>
@@ -429,7 +429,7 @@ export default function HomePage() {
                   {/* 上传结果消息 */}
                   {uploadMessage && (
                     <div className={`mt-6 p-5 rounded-xl flex items-center shadow-lg ${
-                      uploadMessageType === 'success' 
+                      uploadMessageType === 'success'
                         ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 text-green-800'
                         : 'bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-200 text-red-800'
                     }`}>
@@ -448,44 +448,44 @@ export default function HomePage() {
         </div>
 
         {/* 支持的平台说明 */}
-        <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl border-2 border-blue-200/50 p-8 shadow-xl">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+        <div className="bg-gradient-to-br from-blue-50 dark:from-gray-800 via-indigo-50 dark:via-gray-800/90 to-purple-50 dark:to-gray-800/80 rounded-2xl border-2 border-blue-200/50 p-8 shadow-xl">
+          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
             <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl mr-3 shadow-lg shadow-blue-500/30">
-              <Globe className="w-5 h-5 text-white" />
+              <Lightbulb className="w-5 h-5 text-white" />
             </div>
             功能说明
           </h3>
           <div className="space-y-4">
-            <div className="flex items-start space-x-3 bg-white/70 backdrop-blur-sm rounded-xl p-4 hover:bg-white/90 transition-colors border border-blue-100">
+            <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 hover:bg-white dark:hover:bg-gray-700/90 transition-colors border border-blue-100 dark:border-gray-700">
               <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 rounded-lg">
-                <Globe className="w-4 h-4 text-blue-600" />
+                <LinkIcon className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-700"><strong className="text-blue-600">在线链接：</strong>基于 yt-dlp 技术，支持 1000+ 个视频网站</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300"><strong className="text-blue-600">在线链接：</strong>基于 yt-dlp 技术，支持 1000+ 个视频网站</p>
               </div>
             </div>
-            <div className="flex items-start space-x-3 bg-white/70 backdrop-blur-sm rounded-xl p-4 hover:bg-white/90 transition-colors border border-blue-100">
+            <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 hover:bg-white dark:hover:bg-gray-700/90 transition-colors border border-blue-100 dark:border-gray-700">
               <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 rounded-lg">
                 <Upload className="w-4 h-4 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-700"><strong className="text-green-600">本地上传：</strong>直接上传本地视频文件，支持多种格式</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300"><strong className="text-green-600">本地上传：</strong>直接上传本地视频文件，支持多种格式</p>
               </div>
             </div>
-            <div className="flex items-start space-x-3 bg-white/70 backdrop-blur-sm rounded-xl p-4 hover:bg-white/90 transition-colors border border-blue-100">
+            <div className="flex items-center space-x-3 bg-white dark:bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 hover:bg-white dark:hover:bg-gray-700/90 transition-colors border border-blue-100 dark:border-gray-700">
               <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-purple-100 rounded-lg">
-                <Video className="w-4 h-4 text-purple-600" />
+                <DownloadCloud className="w-4 h-4 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-700">提交后系统将自动识别平台并开始下载处理</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">提交后系统将自动识别平台并开始下载处理</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* 快捷导航 */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100">
+          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
             <div className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full mr-3"></div>
             管理功能
           </h3>
@@ -494,29 +494,29 @@ export default function HomePage() {
               href="/dashboard"
               className="group flex items-center justify-center px-5 py-4 bg-gradient-to-br from-blue-50 to-blue-100/50 text-blue-700 rounded-xl hover:from-blue-100 hover:to-blue-200 transition-all shadow-md hover:shadow-xl transform hover:scale-105 border border-blue-200"
             >
-              <Video className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+              <ListChecks className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
               <span className="font-semibold">任务队列</span>
             </a>
             <a
               href="/schedule"
               className="group flex items-center justify-center px-5 py-4 bg-gradient-to-br from-green-50 to-green-100/50 text-green-700 rounded-xl hover:from-green-100 hover:to-green-200 transition-all shadow-md hover:shadow-xl transform hover:scale-105 border border-green-200"
             >
-              <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+              <Clock className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
               <span className="font-semibold">定时上传</span>
             </a>
             <a
               href="/extension"
               className="group flex items-center justify-center px-5 py-4 bg-gradient-to-br from-purple-50 to-purple-100/50 text-purple-700 rounded-xl hover:from-purple-100 hover:to-purple-200 transition-all shadow-md hover:shadow-xl transform hover:scale-105 border border-purple-200"
             >
-              <Globe className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+              <Puzzle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
               <span className="font-semibold">浏览器插件</span>
             </a>
             <a
-              href="/settings"
-              className="group flex items-center justify-center px-5 py-4 bg-gradient-to-br from-gray-50 to-gray-100/50 text-gray-700 rounded-xl hover:from-gray-100 hover:to-gray-200 transition-all shadow-md hover:shadow-xl transform hover:scale-105 border border-gray-200"
+              href="/accounts"
+              className="group flex items-center justify-center px-5 py-4 bg-gradient-to-br from-gray-50 to-gray-100/50 text-gray-700 dark:text-gray-300 rounded-xl hover:from-gray-100 hover:to-gray-200 transition-all shadow-md hover:shadow-xl transform hover:scale-105 border border-gray-200 dark:border-gray-700"
             >
-              <Video className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-              <span className="font-semibold">设置</span>
+              <Link2 className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+              <span className="font-semibold">账号绑定</span>
             </a>
           </div>
         </div>

@@ -29,7 +29,7 @@ func NewExtractAudio(name string, app *core.AppServer, stateManager *manager.Sta
 
 func (t *ExtractAudio) Execute(context map[string]interface{}) bool {
 	fmt.Println("开始分离音频")
-	if err := utils.ExtractWaveAudio(t.StateManager.InputVideoPath, t.StateManager.OriginalMP3); err != nil {
+	if err := utils.ExtractAudio(t.StateManager.InputVideoPath, t.StateManager.OriginalMP3); err != nil {
 		fmt.Println("--- 分离音频失败-----")
 	}
 	fmt.Println("分离音频完成")

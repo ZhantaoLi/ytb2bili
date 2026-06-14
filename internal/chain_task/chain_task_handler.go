@@ -2,7 +2,9 @@ package chain_task
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/difyz9/ytb2bili/internal/chain_task/handlers"
@@ -189,7 +191,6 @@ func (h *ChainTaskHandler) RunTaskChain(video models2.TbVideo) {
 	stateManager := manager.NewStateManager(video.Id, video.VideoId, currentDir, video.CreatedAt)
 	chain := manager.NewTaskChain()
 
-
 	//// 任务1: 下载视频
 	downloadTask := handlers.NewDownloadVideo("下载视频", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
 	chain.AddTask(h.wrapTaskWithStepTracking(downloadTask, video.VideoId))
@@ -369,6 +370,9 @@ func (h *ChainTaskHandler) RunSingleTaskStep(videoID, stepName string) error {
 		if err := h.TaskStepService.UpdateTaskStepResult(videoID, stepName, result); err != nil {
 			h.App.Logger.Errorf("更新任务步骤结果失败: %v", err)
 		}
+		if stepName != "上传到Bilibili" {
+			h.markVideoReadyForUploadIfPossible(savedVideo, stateManager.CurrentDir)
+		}
 		h.App.Logger.Infof("任务步骤 %s 执行成功", stepName)
 	} else {
 		if err := h.TaskStepService.UpdateTaskStepStatus(videoID, stepName, "failed", errorMsg); err != nil {
@@ -380,7 +384,6 @@ func (h *ChainTaskHandler) RunSingleTaskStep(videoID, stepName string) error {
 
 	return nil
 }
-
 
 // wrapTaskWithStepTracking 包装任务以添加步骤跟踪
 func (h *ChainTaskHandler) wrapTaskWithStepTracking(task types.Task, videoID string) types.Task {
@@ -456,4 +459,65 @@ func (w *TaskStepWrapper) Execute(context map[string]interface{}) bool {
 // updateSavedVideoStatus 更新 SavedVideo 的状态
 func (h *ChainTaskHandler) updateSavedVideoStatus(id uint, status string) error {
 	return h.SavedVideoService.UpdateStatus(id, status)
+}
+
+func (h *ChainTaskHandler) markVideoReadyForUploadIfPossible(savedVideo *model.SavedVideo, currentDir string) {
+	if savedVideo == nil || isUploadedOrUploadingStatus(savedVideo.Status) {
+		return
+	}
+	if !hasLocalVideoFile(currentDir) {
+		h.App.Logger.Warnf("视频 %s 尚未找到本地视频文件，不更新为准备上传状态", savedVideo.VideoID)
+		return
+	}
+
+	for _, stepName := range []string{"下载视频", "生成元数据"} {
+		step, err := h.TaskStepService.GetTaskStepByName(savedVideo.VideoID, stepName)
+		if err != nil || step.Status != model.TaskStepStatusCompleted {
+			return
+		}
+	}
+
+	if err := h.updateSavedVideoStatus(savedVideo.ID, "200"); err != nil {
+		h.App.Logger.Errorf("更新视频状态为准备上传失败: %v", err)
+		return
+	}
+	h.App.Logger.Infof("视频 %s 已满足无字幕上传前置条件，状态更新为 200", savedVideo.VideoID)
+}
+
+func isUploadedOrUploadingStatus(status string) bool {
+	switch status {
+	case "201", "300", "301", "400":
+		return true
+	default:
+		return false
+	}
+}
+
+func hasLocalVideoFile(dir string) bool {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	videoExtensions := map[string]struct{}{
+		".mp4":  {},
+		".flv":  {},
+		".mkv":  {},
+		".webm": {},
+		".avi":  {},
+		".mov":  {},
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(file.Name()))
+		if _, ok := videoExtensions[ext]; !ok {
+			continue
+		}
+		info, err := file.Info()
+		if err == nil && info.Size() > 0 {
+			return true
+		}
+	}
+	return false
 }

@@ -64,9 +64,29 @@ func (s *SavedVideoService) CreateVideo(video *model.SavedVideo) error {
 	return s.DB.Create(video).Error
 }
 
-// DeleteVideo 删除视频（软删除）
-func (s *SavedVideoService) DeleteVideo(id uint) error {
-	return s.DB.Delete(&model.SavedVideo{}, id).Error
+// GetByIDs 按主键批量查询视频记录，用于删除前确认每条任务的状态与目录
+func (s *SavedVideoService) GetByIDs(ids []uint) ([]model.SavedVideo, error) {
+	var videos []model.SavedVideo
+	if len(ids) == 0 {
+		return videos, nil
+	}
+	err := s.DB.Where("id IN ?", ids).Find(&videos).Error
+	return videos, err
+}
+
+// HardDeleteWithSteps 在单个事务中物理删除一个任务的全部数据库痕迹：
+// 任务步骤(tb_task_steps) 与 视频记录(tb_saved_videos)。
+// 二者要么一起删除成功，要么一起回滚，避免留下孤儿步骤行。
+func (s *SavedVideoService) HardDeleteWithSteps(id uint, videoID string) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().Where("video_id = ?", videoID).Delete(&model.TaskStep{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Delete(&model.SavedVideo{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // ListVideos 获取视频列表（支持分页和状态筛选）

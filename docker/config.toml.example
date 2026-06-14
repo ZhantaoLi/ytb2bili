@@ -44,30 +44,54 @@ ffmpeg_path = "/usr/bin/ffmpeg"
 # Cookies 文件路径（可选，用于下载受限视频）
 # cookies_file = "/path/to/cookies.txt"
 
-# 代理地址（可选，用于加速下载）
-# proxy_url = "http://127.0.0.1:7890"
-
 # 微软语音服务配置（可选，用于旧版翻译功能）
 # speech_key = "your_azure_speech_key"
 # speech_region = "eastasia"
 
-# LLM 翻译配置
-llm_translation_enabled = true      # 是否启用 LLM 批量翻译（推荐，替代微软翻译）
+# LLM 翻译配置（默认关闭，免费流程直接保留原始字幕）
+llm_translation_enabled = false     # 是否启用本地 LLM 批量翻译
 llm_translation_batch_size = 25      # 批量翻译每批句子数
 llm_translation_max_workers = 3      # 并发工作者数量
 llm_translation_context_size = 2     # 上下文窗口大小
 llm_translation_source_lang = "en"   # 源语言代码
 llm_translation_target_lang = "zh-Hans"  # 目标语言代码
 
-# TTS 字幕音频合成配置
+# TTS 字幕音频合成配置（默认关闭，免费流程不依赖外部语音服务）
 tts_enabled = false  # 是否启用字幕音频合成
 
 # ============================================================================
-# Agent & LLM 配置
+# Agent & LLM 配置（可选，仅用于自行配置的 API 或本地兼容接口）
+# 默认免费流程不需要 API；如需启用，请自行配置 base_url、model、api_key。
 # ============================================================================
 [agent]
 name = "agent"  # Agent 名称
 
+# 字幕翻译 API（可选，默认关闭）
+# DeepLX 适合直接翻译字幕句子；endpoint 必须由使用者自行填写完整 /translate 地址。
+[DeepLXConfig]
+enabled = false
+endpoint = ""
+source_lang = "EN"
+target_lang = "ZH"
+timeout = 30
+
+# OpenAI 兼容翻译接口（可选，默认关闭）
+# 可配置本地 Ollama/new-api/one-api 或其他兼容 /v1/chat/completions 的服务。
+[OpenAICompatibleConfig]
+enabled = false
+provider = "local"
+api_key = ""
+base_url = "http://127.0.0.1:11434/v1"
+model = "qwen2.5:7b"
+timeout = 60
+max_tokens = 4000
+temperature = 0.7
+
+# 代理配置（可选，用于 yt-dlp 下载、字幕获取等网络请求）
+# Docker 容器访问宿主机代理时通常使用 host.docker.internal。
+[ProxyConfig]
+use_proxy = false
+proxy_host = "http://host.docker.internal:10809"
 
 # ============================================================================
 # 自动更新配置

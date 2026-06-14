@@ -246,12 +246,3 @@ func (s *TaskStepService) GetPendingSteps() ([]*model.TaskStep, error) {
 
 	return steps, nil
 }
-
-// DeleteTaskStepsByVideoID 删除指定视频的所有任务步骤（软删除）
-func (s *TaskStepService) DeleteTaskStepsByVideoID(videoID string) error {
-	result := s.DB.Where("video_id = ?", videoID).Delete(&model.TaskStep{})
-	if result.Error != nil {
-		return fmt.Errorf("删除任务步骤失败: %v", result.Error)
-	}
-	return nil
-}

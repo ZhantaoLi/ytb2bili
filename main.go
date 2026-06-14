@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/difyz9/ytb2bili/internal/chain_task"
 	"github.com/difyz9/ytb2bili/internal/core"
 	"github.com/difyz9/ytb2bili/internal/core/services"
@@ -13,7 +14,6 @@ import (
 	"github.com/difyz9/ytb2bili/pkg/logger"
 	biliAccountService "github.com/difyz9/ytb2bili/pkg/services"
 	"github.com/difyz9/ytb2bili/pkg/store"
-	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/fx"
@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 )
+
 // # Unix/Linux/Mac
 // openssl rand -base64 32
 
@@ -143,7 +144,6 @@ func main() {
 			return store.MigrateDatabase(db)
 		}),
 
-
 		fx.Provide(chain_task.NewChainTaskHandler),
 		fx.Invoke(func(h *chain_task.ChainTaskHandler) {
 			// 设置并启动任务消费者（准备阶段：下载、字幕、翻译、元数据）
@@ -201,8 +201,9 @@ func main() {
 				// 获取 cookies 解密密钥
 				decryptKey := appConfig.APIAuth.CookiesDecryptKey
 				if decryptKey == "" {
-					logger.Warn("⚠️ Cookies decrypt key not configured, using default")
-					decryptKey = "07c6b76c-41fa-437d-8730-09f5279bb9dc"
+					h.RegisterRoutesWithAuth(server, authMiddleware, "")
+					logger.Info("Subtitle routes registered with auth only (cookies decrypt key not configured)")
+					return
 				}
 				h.RegisterRoutesWithAuth(server, authMiddleware, decryptKey)
 				logger.Info("✓ Subtitle routes registered with auth and decrypt middleware")

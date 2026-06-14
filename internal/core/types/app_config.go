@@ -21,18 +21,21 @@ type AppConfig struct {
 	FileUpDir   string        `toml:"fileUpDir"`
 	DataPath    string        `toml:"data_path"`   // 数据存储路径（用于 cookies 等）
 	YtDlpPath   string        `toml:"yt_dlp_path"` // yt-dlp 安装路径
+	AutoUpload  bool          `toml:"auto_upload"` // 是否自动上传准备就绪的视频到Bilibili（false=仅准备到就绪态，需手动上传）
 
-	PrimaryAIService         string                    `toml:"primary_ai_service"`          // 首选AI服务提供商
-	TenCosConfig             *TencentCosConfig         `toml:"TenCosConfig"`                // 腾讯云 COS 存储配置
-	OpenAICompatibleConfig   *OpenAICompatibleConfig   `toml:"OpenAICompatibleConfig"`      // OpenAI兼容API配置
-	BaiduTransConfig    *BaiduTransConfig    `toml:"BaiduTransConfig"`    // 百度翻译服务配置
-	DeepSeekTransConfig *DeepSeekTransConfig `toml:"DeepSeekTransConfig"` // DeepSeek翻译服务配置
-	GeminiConfig        *GeminiConfig        `toml:"GeminiConfig"`        // Gemini多模态服务配置
-	TranslatorConfig    *TranslatorConfig    `toml:"TranslatorConfig"`    // 翻译器总配置
-	ProxyConfig         *ProxyConfig         `toml:"ProxyConfig"`         // 代理配置
-	AnalyticsConfig     *AnalyticsConfig     `toml:"AnalyticsConfig"`     // 数据分析配置
-	BilibiliConfig      *BilibiliConfig      `toml:"BilibiliConfig"`      // Bilibili上传配置
-	WhisperConfig       *WhisperConfig       `toml:"WhisperConfig"`       // Whisper 语音识别配置
+	PrimaryAIService       string                  `toml:"primary_ai_service"`     // 首选AI服务提供商
+	TenCosConfig           *TencentCosConfig       `toml:"TenCosConfig"`           // 腾讯云 COS 存储配置
+	OpenAICompatibleConfig *OpenAICompatibleConfig `toml:"OpenAICompatibleConfig"` // OpenAI兼容API配置
+	DeepLXConfig           *DeepLXConfig           `toml:"DeepLXConfig"`           // DeepLX 翻译配置
+	BaiduTransConfig       *BaiduTransConfig       `toml:"BaiduTransConfig"`       // 百度翻译服务配置
+	DeepSeekTransConfig    *DeepSeekTransConfig    `toml:"DeepSeekTransConfig"`    // DeepSeek翻译服务配置
+	GeminiConfig           *GeminiConfig           `toml:"GeminiConfig"`           // Gemini多模态服务配置
+	TranslatorConfig       *TranslatorConfig       `toml:"TranslatorConfig"`       // 翻译器总配置
+	ProxyConfig            *ProxyConfig            `toml:"ProxyConfig"`            // 代理配置
+	AnalyticsConfig        *AnalyticsConfig        `toml:"AnalyticsConfig"`        // 数据分析配置
+	BilibiliConfig         *BilibiliConfig         `toml:"BilibiliConfig"`         // Bilibili上传配置
+	WhisperConfig          *WhisperConfig          `toml:"WhisperConfig"`          // Whisper 语音识别配置
+	MimoASRConfig          *MimoASRConfig          `toml:"MimoASRConfig"`          // MiMo ASR 配置
 }
 
 // BilibiliConfig Bilibili上传配置
@@ -145,6 +148,15 @@ type DeepSeekTransConfig struct {
 	MaxTokens int    `toml:"max_tokens"` // 最大token数
 }
 
+// DeepLXConfig DeepLX 翻译服务配置
+type DeepLXConfig struct {
+	Enabled    bool   `toml:"enabled"`     // 是否启用 DeepLX 翻译
+	Endpoint   string `toml:"endpoint"`    // DeepLX /translate 完整端点
+	SourceLang string `toml:"source_lang"` // 源语言，默认 EN
+	TargetLang string `toml:"target_lang"` // 目标语言，默认 ZH
+	Timeout    int    `toml:"timeout"`     // 超时时间（秒）
+}
+
 // GeminiConfig Gemini多模态服务配置
 type GeminiConfig struct {
 	Enabled           bool   `toml:"enabled"`             // 是否启用Gemini服务
@@ -191,6 +203,17 @@ type WhisperConfig struct {
 	Threads   int    `toml:"threads"`    // 使用的线程数
 }
 
+// MimoASRConfig MiMo ASR 语音识别配置
+type MimoASRConfig struct {
+	Enabled        bool   `toml:"enabled"`
+	APIKey         string `toml:"api_key"`
+	BaseURL        string `toml:"base_url"`
+	Model          string `toml:"model"`
+	Language       string `toml:"language"`
+	SegmentSeconds int    `toml:"segment_seconds"`
+	Timeout        int    `toml:"timeout"`
+}
+
 // OpenAICompatibleConfig OpenAI兼容API配置
 type OpenAICompatibleConfig struct {
 	Enabled     bool    `toml:"enabled"`     // 是否启用
@@ -210,6 +233,7 @@ func NewDefaultConfig() *AppConfig {
 		Environment: "development",
 		Debug:       true,
 		DataPath:    "./data", // 默认数据存储路径
+		AutoUpload:  false,     // 默认关闭自动上传：视频准备到就绪态后停在 200，由用户手动上传
 		Database: Database{
 			Type:     "postgres",
 			Host:     "localhost",
@@ -227,11 +251,11 @@ func NewDefaultConfig() *AppConfig {
 			SessionSecret: "your-session-secret",
 		},
 
-		// API 认证配置（默认值）
+		// API 认证配置默认关闭；如需启用，请在 config.toml 中自行配置。
 		APIAuth: APIAuthConfig{
-			AppID:             "ytb2bili_extension",
-			AppSecret:         "1206091a-3c46-488b-9964-8bc230ee6437",
-			CookiesDecryptKey: "07c6b76c-41fa-437d-8730-09f5279bb9dc",
+			AppID:             "",
+			AppSecret:         "",
+			CookiesDecryptKey: "",
 		},
 
 		// 首选AI服务提供商（空表示自动选择）
@@ -257,6 +281,15 @@ func NewDefaultConfig() *AppConfig {
 			Endpoint:  "https://api.deepseek.com",
 			Timeout:   60,
 			MaxTokens: 4000,
+		},
+
+		// DeepLX 翻译配置默认关闭；如需启用，请在 config.toml 中自行配置 endpoint。
+		DeepLXConfig: &DeepLXConfig{
+			Enabled:    false,
+			Endpoint:   "",
+			SourceLang: "EN",
+			TargetLang: "ZH",
+			Timeout:    30,
 		},
 
 		// Gemini 多模态配置（默认值，可被 config.toml 覆盖）
@@ -292,7 +325,7 @@ func NewDefaultConfig() *AppConfig {
 			Source:             "",
 			NoReprint:          1,         // 默认禁止转载
 			UseOriginalTitle:   true,      // 默认使用原视频标题
-			UseOriginalDesc:    false,     // 默认使用AI生成的描述
+			UseOriginalDesc:    true,      // 默认使用原视频描述，避免依赖云端AI
 			CustomDescTemplate: "",        // 默认不使用自定义模板
 			Tid:                122,       // 默认分区：日常
 			Dynamic:            "发布了新视频！", // 默认动态
@@ -300,19 +333,29 @@ func NewDefaultConfig() *AppConfig {
 			SelectionReserve:   0,         // 默认不参与活动
 			UpSelectionReply:   0,         // 默认不展示推荐评论
 			UpCloseReply:       0,         // 默认开启评论
-			UpCloseReward:      0,         // 默认开启打赏
+			UpCloseReward:      1,         // 默认关闭打赏
 		},
-	
+
 		// // OpenAI 兼容 API 配置（默认值，可被 config.toml 覆盖）
 		OpenAICompatibleConfig: &OpenAICompatibleConfig{
 			Enabled:     false,
-			Provider:    "openai",
+			Provider:    "local",
 			APIKey:      "",
-			BaseURL:     "https://api.openai.com/v1",
-			Model:       "gpt-4o-mini",
+			BaseURL:     "http://127.0.0.1:11434/v1",
+			Model:       "qwen2.5:7b",
 			Timeout:     60,
 			MaxTokens:   4000,
 			Temperature: 0.7,
+		},
+
+		MimoASRConfig: &MimoASRConfig{
+			Enabled:        false,
+			APIKey:         "",
+			BaseURL:        "https://ai.muapi.cn/v1",
+			Model:          "mimo-v2.5-asr",
+			Language:       "auto",
+			SegmentSeconds: 90,
+			Timeout:        120,
 		},
 	}
 }
@@ -341,15 +384,18 @@ func LoadConfig(configFile string) (*AppConfig, error) {
 		FileUpDir              string                  `toml:"fileUpDir"`
 		DataPath               string                  `toml:"data_path"`
 		YtDlpPath              string                  `toml:"yt_dlp_path"`
+		AutoUpload             bool                    `toml:"auto_upload"`
 		PrimaryAIService       string                  `toml:"primary_ai_service"`
 		TenCosConfig           *TencentCosConfig       `toml:"TenCosConfig"`
 		OpenAICompatibleConfig *OpenAICompatibleConfig `toml:"OpenAICompatibleConfig"`
+		DeepLXConfig           *DeepLXConfig           `toml:"DeepLXConfig"`
 		DeepSeekTransConfig    *DeepSeekTransConfig    `toml:"DeepSeekTransConfig"`
 		GeminiConfig           *GeminiConfig           `toml:"GeminiConfig"`
 		ProxyConfig            *ProxyConfig            `toml:"ProxyConfig"`
 		AnalyticsConfig        *AnalyticsConfig        `toml:"AnalyticsConfig"`
 		BilibiliConfig         *BilibiliConfig         `toml:"BilibiliConfig"`
 		WhisperConfig          *WhisperConfig          `toml:"WhisperConfig"`
+		MimoASRConfig          *MimoASRConfig          `toml:"MimoASRConfig"`
 	}
 
 	// 解码TOML配置文件
@@ -367,18 +413,19 @@ func LoadConfig(configFile string) (*AppConfig, error) {
 	config.FileUpDir = fileConfig.FileUpDir
 	config.DataPath = fileConfig.DataPath
 	config.YtDlpPath = fileConfig.YtDlpPath
+	config.AutoUpload = fileConfig.AutoUpload
 	config.PrimaryAIService = fileConfig.PrimaryAIService
-	
-	// API 认证配置：如果配置了 AppID，则覆盖默认值
-	if fileConfig.APIAuth.AppID != "" {
-		config.APIAuth = fileConfig.APIAuth
-	}
-	
+
+	config.APIAuth = fileConfig.APIAuth
+
 	if fileConfig.TenCosConfig != nil {
 		config.TenCosConfig = fileConfig.TenCosConfig
 	}
 	if fileConfig.OpenAICompatibleConfig != nil {
 		config.OpenAICompatibleConfig = fileConfig.OpenAICompatibleConfig
+	}
+	if fileConfig.DeepLXConfig != nil {
+		config.DeepLXConfig = fileConfig.DeepLXConfig
 	}
 	if fileConfig.DeepSeekTransConfig != nil {
 		config.DeepSeekTransConfig = fileConfig.DeepSeekTransConfig
@@ -398,7 +445,9 @@ func LoadConfig(configFile string) (*AppConfig, error) {
 	if fileConfig.WhisperConfig != nil {
 		config.WhisperConfig = fileConfig.WhisperConfig
 	}
-
+	if fileConfig.MimoASRConfig != nil {
+		config.MimoASRConfig = fileConfig.MimoASRConfig
+	}
 
 	return config, nil
 }
@@ -416,15 +465,18 @@ func SaveConfig(config *AppConfig) error {
 		FileUpDir              string                  `toml:"fileUpDir"`
 		DataPath               string                  `toml:"data_path"`
 		YtDlpPath              string                  `toml:"yt_dlp_path"`
+		AutoUpload             bool                    `toml:"auto_upload"`
 		PrimaryAIService       string                  `toml:"primary_ai_service"`
 		TenCosConfig           *TencentCosConfig       `toml:"TenCosConfig"`
 		OpenAICompatibleConfig *OpenAICompatibleConfig `toml:"OpenAICompatibleConfig"`
+		DeepLXConfig           *DeepLXConfig           `toml:"DeepLXConfig"`
 		DeepSeekTransConfig    *DeepSeekTransConfig    `toml:"DeepSeekTransConfig"`
 		GeminiConfig           *GeminiConfig           `toml:"GeminiConfig"`
 		ProxyConfig            *ProxyConfig            `toml:"ProxyConfig"`
 		AnalyticsConfig        *AnalyticsConfig        `toml:"AnalyticsConfig"`
 		BilibiliConfig         *BilibiliConfig         `toml:"BilibiliConfig"`
 		WhisperConfig          *WhisperConfig          `toml:"WhisperConfig"`
+		MimoASRConfig          *MimoASRConfig          `toml:"MimoASRConfig"`
 	}{
 		Listen:                 config.Listen,
 		Environment:            config.Environment,
@@ -435,15 +487,18 @@ func SaveConfig(config *AppConfig) error {
 		FileUpDir:              config.FileUpDir,
 		DataPath:               config.DataPath,
 		YtDlpPath:              config.YtDlpPath,
+		AutoUpload:             config.AutoUpload,
 		PrimaryAIService:       config.PrimaryAIService,
 		TenCosConfig:           config.TenCosConfig,
 		OpenAICompatibleConfig: config.OpenAICompatibleConfig,
+		DeepLXConfig:           config.DeepLXConfig,
 		DeepSeekTransConfig:    config.DeepSeekTransConfig,
 		GeminiConfig:           config.GeminiConfig,
 		ProxyConfig:            config.ProxyConfig,
 		AnalyticsConfig:        config.AnalyticsConfig,
 		BilibiliConfig:         config.BilibiliConfig,
 		WhisperConfig:          config.WhisperConfig,
+		MimoASRConfig:          config.MimoASRConfig,
 	}
 
 	buf := new(bytes.Buffer)

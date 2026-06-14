@@ -47,16 +47,16 @@ export default function ExtensionPage() {
   return (
       <div className="space-y-6">
         {/* 插件介绍 */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 p-6">
+        <div className="bg-gradient-to-r from-purple-50 dark:from-purple-900/30 to-pink-50 dark:to-pink-900/30 rounded-lg border border-purple-200 dark:border-purple-700 p-4 md:p-6">
           <div className="flex items-start space-x-4">
             <div className="flex-shrink-0">
               <Puzzle className="w-8 h-8 text-purple-600" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 YTB2BILI 浏览器插件
               </h2>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
                 通过安装我们的浏览器插件，您可以更方便地使用 YTB2BILI 平台的各项功能。
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
@@ -92,41 +92,41 @@ export default function ExtensionPage() {
         </div>
 
         {/* 功能特性 */}
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">插件功能</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">插件功能</h3>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-start space-x-3">
+          <div className="p-4 md:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:p-6">
+              <div className="flex items-start space-x-2 md:space-x-3">
                 <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">自动获取视频信息</h4>
-                  <p className="text-sm text-gray-600">在 B 站视频页面自动提取标题、描述、封面等信息</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">自动获取视频信息</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">在 B 站视频页面自动提取标题、描述、封面等信息</p>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2 md:space-x-3">
                 <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">快速导入视频</h4>
-                  <p className="text-sm text-gray-600">一键将当前浏览的视频添加到上传队列</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">快速导入视频</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">一键将当前浏览的视频添加到上传队列</p>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2 md:space-x-3">
                 <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">批量操作</h4>
-                  <p className="text-sm text-gray-600">支持批量导入收藏夹或播放列表中的视频</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">批量操作</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">支持批量导入收藏夹或播放列表中的视频</p>
                 </div>
               </div>
               
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2 md:space-x-3">
                 <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900">同步管理</h4>
-                  <p className="text-sm text-gray-600">与 YTB2BILI Web 平台实时同步数据</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">同步管理</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">与 YTB2BILI Web 平台实时同步数据</p>
                 </div>
               </div>
             </div>
@@ -134,19 +134,19 @@ export default function ExtensionPage() {
         </div>
 
         {/* 安装教程 */}
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">安装教程</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+          <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">安装教程</h3>
           </div>
-          <div className="p-6">
-            <div className="space-y-4">
+          <div className="p-4 md:p-6">
+            <div className="space-y-3 md:space-y-4">
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
                   1
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">下载插件文件</h4>
-                  <p className="text-sm text-gray-600">点击上方的&ldquo;下载最新版本&rdquo;按钮，下载插件压缩包到本地</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">下载插件文件</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">点击上方的&ldquo;下载最新版本&rdquo;按钮，下载插件压缩包到本地</p>
                 </div>
               </div>
               
@@ -155,8 +155,8 @@ export default function ExtensionPage() {
                   2
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">解压文件</h4>
-                  <p className="text-sm text-gray-600">将下载的 zip 文件解压到一个文件夹中</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">解压文件</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">将下载的 zip 文件解压到一个文件夹中</p>
                 </div>
               </div>
               
@@ -165,8 +165,8 @@ export default function ExtensionPage() {
                   3
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">打开扩展管理页面</h4>
-                  <p className="text-sm text-gray-600">在 Chrome 浏览器中访问 <code className="bg-gray-100 px-1 rounded">chrome://extensions/</code></p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">打开扩展管理页面</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">在 Chrome 浏览器中访问 <code className="bg-gray-100 px-1 rounded">chrome://extensions/</code></p>
                 </div>
               </div>
               
@@ -175,8 +175,8 @@ export default function ExtensionPage() {
                   4
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">启用开发者模式</h4>
-                  <p className="text-sm text-gray-600">在扩展页面右上角打开&ldquo;开发者模式&rdquo;开关</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">启用开发者模式</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">在扩展页面右上角打开&ldquo;开发者模式&rdquo;开关</p>
                 </div>
               </div>
               
@@ -185,8 +185,8 @@ export default function ExtensionPage() {
                   5
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">加载插件</h4>
-                  <p className="text-sm text-gray-600">点击&ldquo;加载已解压的扩展程序&rdquo;，选择刚才解压的文件夹</p>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">加载插件</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">点击&ldquo;加载已解压的扩展程序&rdquo;，选择刚才解压的文件夹</p>
                 </div>
               </div>
             </div>

@@ -1,13 +1,15 @@
 package store
 
 import (
+	"fmt"
+
 	"github.com/difyz9/ytb2bili/internal/core/types"
 	"github.com/difyz9/ytb2bili/pkg/store/model"
-	"fmt"
 	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -49,8 +51,14 @@ func NewDatabase(config *types.AppConfig) (*gorm.DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to MySQL: %w", err)
 		}
+	case "sqlite", "sqlite3":
+		dsn := config.Database.GetDSN()
+		db, err = gorm.Open(sqlite.Open(dsn), gormConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to SQLite: %w", err)
+		}
 	default:
-		return nil, fmt.Errorf("unsupported database type: %s (supported: postgres, mysql)", config.Database.Type)
+		return nil, fmt.Errorf("unsupported database type: %s (supported: postgres, mysql, sqlite)", config.Database.Type)
 	}
 
 	// 获取底层的sql.DB对象

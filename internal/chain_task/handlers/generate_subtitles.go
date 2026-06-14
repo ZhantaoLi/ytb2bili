@@ -1,6 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/difyz9/ytb2bili/internal/chain_task/base"
 	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
 	"github.com/difyz9/ytb2bili/internal/core"
@@ -8,11 +17,6 @@ import (
 	"github.com/difyz9/ytb2bili/pkg/cos"
 	"github.com/difyz9/ytb2bili/pkg/store/model"
 	"github.com/difyz9/ytb2bili/pkg/utils"
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 type GenerateSubtitles struct {
@@ -85,9 +89,9 @@ func (t *GenerateSubtitles) Execute(context map[string]interface{}) bool {
 	}
 
 	// 2. 检查字幕数据是否存在
-	if savedVideo.Subtitles == "" || savedVideo.Subtitles == "null" {
-		t.App.Logger.Warn("⚠️  视频没有字幕数据，跳过字幕生成")
-		return true // 没有字幕不算错误，继续执行后续任务
+	if isEmptySubtitleJSON(savedVideo.Subtitles) {
+		t.App.Logger.Warn("⚠️  视频没有字幕数据，尝试 MiMo ASR 生成字幕")
+		return t.generateSubtitlesWithMimoASR(context)
 	}
 
 	// 3. 解析字幕 JSON 数据
@@ -99,8 +103,8 @@ func (t *GenerateSubtitles) Execute(context map[string]interface{}) bool {
 	}
 
 	if len(subtitles) == 0 {
-		t.App.Logger.Warn("⚠️  字幕数据为空，跳过字幕生成")
-		return true
+		t.App.Logger.Warn("⚠️  字幕数据为空，尝试 MiMo ASR 生成字幕")
+		return t.generateSubtitlesWithMimoASR(context)
 	}
 
 	t.App.Logger.Infof("📝 找到 %d 条字幕", len(subtitles))
@@ -166,6 +170,191 @@ func (t *GenerateSubtitles) Execute(context map[string]interface{}) bool {
 	t.App.Logger.Info("========================================")
 
 	return true
+}
+
+func isEmptySubtitleJSON(subtitleJSON string) bool {
+	trimmed := strings.TrimSpace(subtitleJSON)
+	return trimmed == "" || trimmed == "null" || trimmed == "[]"
+}
+
+func (t *GenerateSubtitles) generateSubtitlesWithMimoASR(context map[string]interface{}) bool {
+	config := t.App.Config.MimoASRConfig
+	if config == nil || !config.Enabled || strings.TrimSpace(config.APIKey) == "" {
+		t.App.Logger.Warn("⚠️  MiMo ASR 未启用或未配置 API Key，跳过字幕生成")
+		context["subtitle_skipped"] = "mimo_asr_not_configured"
+		return true
+	}
+
+	videoPath, err := t.findSourceVideo()
+	if err != nil {
+		t.App.Logger.Errorf("❌ 查找待识别视频失败: %v", err)
+		context["error"] = err.Error()
+		return false
+	}
+
+	segmentSeconds := config.SegmentSeconds
+	if segmentSeconds <= 0 {
+		segmentSeconds = 90
+	}
+
+	segmentPaths, err := t.splitVideoForASR(videoPath, segmentSeconds)
+	if err != nil {
+		t.App.Logger.Errorf("❌ 切分 ASR 音频失败: %v", err)
+		context["error"] = err.Error()
+		return false
+	}
+
+	language := strings.TrimSpace(config.Language)
+	if language == "" {
+		language = "auto"
+	}
+	client := NewMimoASRClient(MimoASRClientConfig{
+		APIKey:  config.APIKey,
+		BaseURL: config.BaseURL,
+		Model:   config.Model,
+		Timeout: config.Timeout,
+	})
+
+	asrSegments := make([]asrSegment, 0, len(segmentPaths))
+	for i, segmentPath := range segmentPaths {
+		t.App.Logger.Infof("🎙️  MiMo ASR 转写片段 %d/%d: %s", i+1, len(segmentPaths), filepath.Base(segmentPath))
+		text, err := client.TranscribeFile(segmentPath, language)
+		if err != nil {
+			t.App.Logger.Errorf("❌ MiMo ASR 转写失败: %v", err)
+			context["error"] = err.Error()
+			return false
+		}
+		duration := probeAudioDuration(segmentPath)
+		if duration <= 0 {
+			duration = float64(segmentSeconds)
+		}
+		asrSegments = append(asrSegments, asrSegment{
+			Start:    float64(i * segmentSeconds),
+			Duration: duration,
+			Text:     text,
+		})
+	}
+
+	srtContent := buildSRTFromASRSegments(asrSegments)
+	if strings.TrimSpace(srtContent) == "" {
+		errMsg := "MiMo ASR 未返回可写入字幕的文本"
+		t.App.Logger.Error("❌ " + errMsg)
+		context["error"] = errMsg
+		return false
+	}
+
+	srtFilePath, err := t.writeSubtitleFiles(srtContent)
+	if err != nil {
+		t.App.Logger.Errorf("❌ 写入 ASR 字幕文件失败: %v", err)
+		context["error"] = err.Error()
+		return false
+	}
+
+	context["subtitle_file"] = srtFilePath
+	context["subtitle_count"] = len(asrSegments)
+	context["asr_provider"] = "mimo"
+	context["asr_segments"] = len(segmentPaths)
+	t.App.Logger.Infof("✅ MiMo ASR 字幕生成成功: %s", srtFilePath)
+	return true
+}
+
+func (t *GenerateSubtitles) findSourceVideo() (string, error) {
+	candidates := []string{
+		t.StateManager.InputVideoPath,
+		filepath.Join(t.StateManager.CurrentDir, t.StateManager.VideoID+".mp4"),
+	}
+	for _, path := range candidates {
+		if fileInfo, err := os.Stat(path); err == nil && !fileInfo.IsDir() && fileInfo.Size() > 0 {
+			return path, nil
+		}
+	}
+
+	for _, pattern := range []string{"*.mp4", "*.webm", "*.mkv", "*.flv"} {
+		matches, err := filepath.Glob(filepath.Join(t.StateManager.CurrentDir, pattern))
+		if err != nil {
+			return "", err
+		}
+		sort.Strings(matches)
+		for _, path := range matches {
+			if fileInfo, err := os.Stat(path); err == nil && !fileInfo.IsDir() && fileInfo.Size() > 0 {
+				return path, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("未找到可用于 ASR 的视频文件: %s", t.StateManager.CurrentDir)
+}
+
+func (t *GenerateSubtitles) splitVideoForASR(videoPath string, segmentSeconds int) ([]string, error) {
+	segmentsDir := filepath.Join(t.StateManager.CurrentDir, "asr_segments", fmt.Sprintf("%d", os.Getpid()))
+	if err := os.MkdirAll(segmentsDir, 0755); err != nil {
+		return nil, err
+	}
+
+	outputPattern := filepath.Join(segmentsDir, "segment_%04d.mp3")
+	cmd := exec.Command(
+		"ffmpeg",
+		"-y",
+		"-i", videoPath,
+		"-vn",
+		"-ac", "1",
+		"-ar", "16000",
+		"-b:a", "64k",
+		"-f", "segment",
+		"-segment_time", strconv.Itoa(segmentSeconds),
+		"-reset_timestamps", "1",
+		outputPattern,
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("ffmpeg 切分失败: %v, output=%s", err, strings.TrimSpace(string(output)))
+	}
+
+	segments, err := filepath.Glob(filepath.Join(segmentsDir, "segment_*.mp3"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(segments)
+	if len(segments) == 0 {
+		return nil, fmt.Errorf("ffmpeg 未生成 ASR 音频片段")
+	}
+	return segments, nil
+}
+
+func (t *GenerateSubtitles) writeSubtitleFiles(srtContent string) (string, error) {
+	if err := os.MkdirAll(t.StateManager.CurrentDir, 0755); err != nil {
+		return "", err
+	}
+
+	srtFilePath := filepath.Join(t.StateManager.CurrentDir, fmt.Sprintf("%s.srt", t.StateManager.VideoID))
+	if err := os.WriteFile(srtFilePath, []byte(srtContent), 0644); err != nil {
+		return "", err
+	}
+
+	enSrtFilePath := filepath.Join(t.StateManager.CurrentDir, "en.srt")
+	if err := utils.CopyFile(srtFilePath, enSrtFilePath); err != nil {
+		return "", err
+	}
+
+	return srtFilePath, nil
+}
+
+func probeAudioDuration(audioPath string) float64 {
+	output, err := exec.Command(
+		"ffprobe",
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		audioPath,
+	).Output()
+	if err != nil {
+		return 0
+	}
+	duration, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+	if err != nil {
+		return 0
+	}
+	return duration
 }
 
 // truncateString 截断字符串，避免日志过长

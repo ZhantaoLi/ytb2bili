@@ -175,8 +175,8 @@ cp config.toml.example config.toml
 
 - `server.port`: 서비스 포트
 - `database.*`: 데이터베이스 연결 정보
-- `workflow.*`: 다운로드 디렉터리, 프록시, ffmpeg, yt-dlp 등 워크플로 설정
-- `api2key.*`: AI, 크레딧, 번역, TTS 등 통합 백엔드 기능
+- `workflow.*`: 다운로드 디렉터리, 프록시, ffmpeg, yt-dlp, 무료 자막 생성, 선택적 로컬 번역, 업로드 파이프라인 설정
+- `agent.llm.*`: 선택적 API/로컬 호환 설정이며 기본값은 비활성화, 사용자가 직접 구성
 - `updater.enabled`: 자동 업데이트 스위치
 
 빌드 명령:

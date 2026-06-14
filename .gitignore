@@ -41,6 +41,10 @@ output/
 *.temp
 .env
 .env.local
+*.bak
+*.7z
+tools/
+web/tsconfig.tsbuildinfo
 
 # 上传文件
 uploads/

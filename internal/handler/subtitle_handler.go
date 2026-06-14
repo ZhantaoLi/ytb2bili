@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/difyz9/ytb2bili/internal/core"
 	"github.com/difyz9/ytb2bili/pkg/auth"
 	"github.com/difyz9/ytb2bili/pkg/store/model"
 	"github.com/difyz9/ytb2bili/pkg/utils"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,7 +74,7 @@ func (h *SubtitleHandler) saveVideoSubtitles(c *gin.Context) {
 	fmt.Printf("📺 标题: %s\n", req.Title)
 	fmt.Printf("🎬 操作类型: %s\n", req.OperationType)
 	fmt.Println("========================================")
-	
+
 	// 从 context 获取解密后的 cookies（由 DecryptCookies 中间件解密）
 	if cookiesStr, exists := c.Get("decryptedCookies"); exists {
 		if cookies, ok := cookiesStr.(string); ok && cookies != "" {
@@ -113,7 +113,7 @@ func (h *SubtitleHandler) saveVideoSubtitles(c *gin.Context) {
 	subtitlesJSONStr := string(subtitlesJSON)
 	fmt.Printf("字幕数据长度: %d 字符\n", len(subtitlesJSONStr))
 	fmt.Printf("字幕条目数量: %d\n", len(req.Subtitles))
-	
+
 	// 如果数据太大，截断前100个字符用于调试
 	if len(subtitlesJSONStr) > 100 {
 		fmt.Printf("字幕数据前100字符: %s...\n", subtitlesJSONStr[:100])
@@ -139,7 +139,7 @@ func (h *SubtitleHandler) saveVideoSubtitles(c *gin.Context) {
 		existingVideo.PlaylistID = req.PlaylistID
 		existingVideo.Timestamp = req.Timestamp
 		existingVideo.SavedAt = req.SavedAt
-		existingVideo.Status = "001" // 重置状态为待处理
+		existingVideo.Status = "001"               // 重置状态为待处理
 		existingVideo.DeletedAt = gorm.DeletedAt{} // 恢复记录（清除删除标记）
 
 		// 更新到数据库（使用 Unscoped 以便更新已删除的记录）
@@ -152,7 +152,7 @@ func (h *SubtitleHandler) saveVideoSubtitles(c *gin.Context) {
 			return
 		}
 		savedVideo = &existingVideo
-		
+
 		if existingVideo.DeletedAt.Valid {
 			fmt.Printf("✅ 恢复已删除的视频: %s\n", videoID)
 		}
@@ -220,8 +220,11 @@ func (h *SubtitleHandler) RegisterRoutes(server *core.AppServer) {
 func (h *SubtitleHandler) RegisterRoutesWithAuth(server *core.AppServer, authMiddleware *auth.Middleware, decryptKey string) {
 	api := server.Engine.Group("/api/v1")
 
-	
 	// 创建解密中间件
+	if decryptKey == "" {
+		api.POST("/submit", authMiddleware.Handler(), h.saveVideoSubtitles)
+		return
+	}
 	decryptMiddleware := auth.DecryptCookies(decryptKey)
 
 	// 为 /submit 路由添加认证中间件和解密中间件
@@ -268,7 +271,7 @@ func (h *SubtitleHandler) convertToNetscapeFormat(cookiesStr string) (string, er
 	if err := json.Unmarshal([]byte(cookiesStr), &cookies); err != nil {
 		// 解析失败，尝试 fallback 格式（name=value 格式）
 		fmt.Printf("⚠️ JSON 解析失败，尝试 fallback 格式: %v\n", err)
-		
+
 		// 简单的 fallback：直接使用原始字符串
 		// 假设格式可能是 "name=value; name2=value2"
 		lines := []string{
@@ -276,7 +279,7 @@ func (h *SubtitleHandler) convertToNetscapeFormat(cookiesStr string) (string, er
 			"# This is a generated file! Do not edit.",
 			"",
 		}
-		
+
 		// 尝试解析简单的 key=value 格式
 		parts := strings.Split(cookiesStr, ";")
 		for _, part := range parts {
@@ -284,22 +287,22 @@ func (h *SubtitleHandler) convertToNetscapeFormat(cookiesStr string) (string, er
 			if part == "" {
 				continue
 			}
-			
+
 			// 分割 name=value
 			kv := strings.SplitN(part, "=", 2)
 			if len(kv) != 2 {
 				continue
 			}
-			
+
 			name := strings.TrimSpace(kv[0])
 			value := strings.TrimSpace(kv[1])
-			
+
 			// Netscape 格式：domain	flag	path	secure	expiration	name	value
 			// 使用默认值
 			line := fmt.Sprintf(".youtube.com\tTRUE\t/\tFALSE\t0\t%s\t%s", name, value)
 			lines = append(lines, line)
 		}
-		
+
 		return strings.Join(lines, "\n"), nil
 	}
 
@@ -312,12 +315,12 @@ func (h *SubtitleHandler) convertToNetscapeFormat(cookiesStr string) (string, er
 	for _, cookie := range cookies {
 		// Netscape 格式：
 		// domain	flag	path	secure	expiration	name	value
-		
+
 		domain := cookie.Domain
 		if domain == "" {
 			domain = ".youtube.com"
 		}
-		
+
 		// flag: TRUE 表示所有子域名都可以访问
 		flag := "FALSE"
 		if cookie.HostOnly {
@@ -325,23 +328,23 @@ func (h *SubtitleHandler) convertToNetscapeFormat(cookiesStr string) (string, er
 		} else {
 			flag = "TRUE"
 		}
-		
+
 		path := cookie.Path
 		if path == "" {
 			path = "/"
 		}
-		
+
 		secure := "FALSE"
 		if cookie.Secure {
 			secure = "TRUE"
 		}
-		
+
 		// 过期时间（Unix 时间戳）
 		expiration := "0"
 		if cookie.ExpirationDate > 0 {
 			expiration = strconv.FormatInt(int64(cookie.ExpirationDate), 10)
 		}
-		
+
 		// 构建 Netscape 格式行
 		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
 			domain,
@@ -352,7 +355,7 @@ func (h *SubtitleHandler) convertToNetscapeFormat(cookiesStr string) (string, er
 			cookie.Name,
 			cookie.Value,
 		)
-		
+
 		lines = append(lines, line)
 	}
 

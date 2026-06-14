@@ -221,32 +221,32 @@ export default function AccountsPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 页面标题 */}
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">账号绑定管理</h2>
-          <p className="text-gray-600 mt-2">绑定多个平台账号，实现视频多平台分发</p>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">账号绑定管理</h2>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">绑定多个平台账号，实现视频多平台分发</p>
         </div>
 
         {/* 已绑定账号列表 */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <h3 className="text-xl font-semibold flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-green-600" />
             已绑定账号
           </h3>
           <div className="min-h-[200px]">
             {isChecking ? (
-              <div className="text-center py-12 bg-white rounded-lg border shadow-sm">
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border shadow-sm">
                 <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent text-gray-400 mb-2" />
-                <p className="text-gray-600 text-sm">加载中...</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">加载中...</p>
               </div>
             ) : accounts.filter(a => a.connected).length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg border border-dashed shadow-sm">
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-dashed shadow-sm">
                 <Link2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 mb-1">暂无绑定账号</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-1">暂无绑定账号</p>
                 <p className="text-xs text-gray-400">请在下方选择平台进行绑定</p>
               </div>
             ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:p-6">
               {accounts.filter(a => a.connected).map((account) => (
-                <div key={account.platform} className="group relative bg-white rounded-xl border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
+                <div key={account.platform} className="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
                   {/* 背景装饰 */}
                   <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full ${account.color} opacity-5 blur-3xl group-hover:opacity-10 transition-opacity pointer-events-none`}></div>
                   
@@ -259,17 +259,17 @@ export default function AccountsPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <h3 className="font-bold text-gray-900 leading-tight">{account.name}</h3>
+                            <h3 className="font-bold text-gray-900 dark:text-white leading-tight">{account.name}</h3>
                             {account.isPrimary && (
                               <span title="主账号" className="inline-flex">
                                 <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-gray-500">已授权连接</span>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400">已授权连接</span>
                         </div>
                       </div>
-                      <div className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100 flex items-center gap-1.5 shadow-sm">
+                      <div className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-700 flex items-center gap-1.5 shadow-sm">
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -283,7 +283,7 @@ export default function AccountsPage() {
                       <div className="relative group/avatar">
                         <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full opacity-70 group-hover/avatar:opacity-100 transition duration-500 blur-sm"></div>
                         {account.avatar ? (
-                          <div className="relative p-1 bg-white rounded-full">
+                          <div className="relative p-1 bg-white dark:bg-gray-800 rounded-full">
                              <img 
                                src={account.avatar} 
                                alt={account.username} 
@@ -300,20 +300,20 @@ export default function AccountsPage() {
                              </div>
                           </div>
                         ) : (
-                          <div className="relative p-1 bg-white rounded-full">
+                          <div className="relative p-1 bg-white dark:bg-gray-800 rounded-full">
                             <div className={`w-16 h-16 ${account.color} rounded-full flex items-center justify-center text-2xl text-white shadow-inner`}>
                                {account.icon}
                             </div>
                           </div>
                         )}
-                        <div className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow-md border border-gray-50">
+                        <div className="absolute bottom-0 right-0 bg-white dark:bg-gray-800 rounded-full p-1 shadow-md border border-gray-50">
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         </div>
                       </div>
                       
                       <div className="text-center w-full px-2">
-                        <h4 className="font-bold text-gray-900 truncate text-lg" title={account.username}>{account.username}</h4>
-                        <p className="text-xs text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-2 py-0.5 rounded-full border border-gray-100">
+                        <h4 className="font-bold text-gray-900 dark:text-white truncate text-base md:text-lg" title={account.username}>{account.username}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium bg-gray-50 dark:bg-gray-900 inline-block px-2 py-0.5 rounded-full border border-gray-100">
                           绑定于 {account.connectedAt ? new Date(account.connectedAt).toLocaleDateString('zh-CN') : '刚刚'}
                         </p>
                       </div>
@@ -331,7 +331,7 @@ export default function AccountsPage() {
                     
                     <button 
                       onClick={() => handleDisconnect(account)} 
-                      className="group/btn relative overflow-hidden bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-1.5 shadow-sm hover:shadow"
+                      className="group/btn relative overflow-hidden bg-white dark:bg-gray-800 hover:bg-red-50 text-gray-500 dark:text-gray-400 hover:text-red-600 border border-gray-200 dark:border-gray-700 hover:border-red-200 px-3 py-1.5 rounded-lg transition-all duration-300 flex items-center gap-1.5 shadow-sm hover:shadow"
                       title="解绑账号"
                     >
                        <Unlink className="w-3.5 h-3.5 transition-transform group-hover/btn:rotate-45" />
@@ -346,25 +346,25 @@ export default function AccountsPage() {
         </div>
 
         {/* 可绑定平台列表 */}
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <h3 className="text-xl font-semibold flex items-center gap-2">
             <Link2 className="h-5 w-5 text-blue-600" />
             添加新平台
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:p-6">
             {accounts.map((account) => {
               const isBound = account.connected;
               return (
                 <div
                   key={account.platform}
-                  className={`relative group bg-white rounded-xl border p-6 transition-all duration-300 ${
+                  className={`relative group bg-white dark:bg-gray-800 rounded-xl border p-6 transition-all duration-300 ${
                     !account.isSupported 
                       ? 'opacity-70 grayscale-[0.5] hover:opacity-100 hover:grayscale-0' 
                       : 'hover:border-blue-400 hover:shadow-lg hover:-translate-y-1'
                   }`}
                 >
-                  <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="flex flex-col items-center text-center space-y-3 md:space-y-4">
                     <div
                       className={`w-16 h-16 ${account.color} rounded-2xl rotate-3 group-hover:rotate-0 transition-transform duration-300 flex items-center justify-center text-3xl text-white shadow-lg`}
                     >
@@ -372,9 +372,9 @@ export default function AccountsPage() {
                     </div>
                     <div className="flex-1 w-full">
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <h3 className="font-bold text-lg text-gray-900">{account.name}</h3>
+                        <h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">{account.name}</h3>
                         {!account.isSupported && (
-                          <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
+                          <span className="text-[10px] bg-gray-100 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700">
                             开发中
                           </span>
                         )}
@@ -384,16 +384,16 @@ export default function AccountsPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 mb-6 min-h-[40px] leading-relaxed">{account.description}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 min-h-[40px] leading-relaxed">{account.description}</p>
                       
                       <button
                         onClick={() => handleConnect(account.platform, account.name)}
                         disabled={isBound || !account.isSupported}
                         className={`w-full rounded-lg h-10 font-medium transition-all ${
                           isBound
-                            ? 'bg-green-50 text-green-600 border border-green-200 hover:bg-green-50 cursor-default'
+                            ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/40 cursor-default'
                             : !account.isSupported
-                            ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                            ? 'bg-gray-100 text-gray-400 border border-gray-200 dark:border-gray-700 cursor-not-allowed'
                             : `bg-gradient-to-r ${account.bgColor} text-white hover:opacity-90 shadow-md hover:shadow-lg`
                         }`}
                       >
@@ -420,7 +420,7 @@ export default function AccountsPage() {
         </div>
 
         {/* 帮助与提示 - 双栏布局 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:p-6">
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
             <h4 className="font-semibold text-blue-900 flex items-center gap-2 mb-4">
               <Info className="h-5 w-5 text-blue-600" />

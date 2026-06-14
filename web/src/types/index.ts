@@ -6,48 +6,6 @@ export interface User {
   isLoggedIn: boolean;
 }
 
-// 订单相关类型
-export interface Order {
-  order_no: string;
-  status: OrderStatus;
-  amount: number;
-  user_id: string;
-  pay_way: string;
-  paid_at?: string;
-  created_at: string;
-}
-
-export type OrderStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
-
-export interface CreateOrderRequest {
-  product_id: string;
-  pay_way: 'alipay' | 'wechat' | 'paypal' | 'mock';
-  pay_type: 'h5' | 'pc' | 'native';
-  return_url?: string;
-  callback_url?: string;
-  extra?: string;
-}
-
-export interface CreateOrderResponse {
-  order_no: string;
-  amount: number;
-  product: string;
-  created_at: string;
-}
-
-// VIP产品类型
-export interface VIPProduct {
-  id: string;
-  name: string;
-  tier: 'basic' | 'premium' | 'enterprise';
-  plan: 'monthly' | 'quarterly' | 'yearly' | 'lifetime';
-  price: number;
-  original_price?: number;
-  duration_days: number;
-  features: string[];
-  popular?: boolean;
-}
-
 export interface Video {
   id: number;
   video_id: string;
@@ -112,7 +70,7 @@ export interface VideoFile {
 
 export type TaskStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 
-export type VideoStatus = '001' | '002' | '200' | '999';
+export type VideoStatus = '001' | '002' | '200' | '250' | '999';
 
 export interface Subtitle {
   id?: number;
@@ -169,6 +127,7 @@ export const VIDEO_STATUS_MAP = {
   '001': { label: '待处理', className: 'status-pending' },
   '002': { label: '处理中', className: 'status-processing' },
   '200': { label: '已完成', className: 'status-completed' },
+  '250': { label: '已准备（不上传）', className: 'status-completed' },
   '999': { label: '失败', className: 'status-failed' },
 } as const;
 

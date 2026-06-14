@@ -47,6 +47,7 @@ func (h *VideoHandler) RegisterRoutes(api *gin.RouterGroup) {
 	video := api.Group("/videos")
 	{
 		video.GET("", h.getVideoList)
+		video.POST("/batch-delete", h.batchDeleteVideos)
 		video.GET("/:id", h.getVideoDetail)
 		video.DELETE("/:id", h.deleteVideo)
 		video.POST("/:id/steps/:stepName/retry", h.retryTaskStep)
@@ -300,8 +301,8 @@ func (h *VideoHandler) retryTaskStep(c *gin.Context) {
 	// 重新执行任务步骤
 	h.App.Logger.Infof("🔄 用户请求重试任务步骤: %s - %s", savedVideo.VideoID, stepName)
 
-	// 重置任务步骤状态为待执行
-	err = h.TaskStepService.UpdateTaskStepStatus(savedVideo.VideoID, stepName, "pending")
+	// 重置任务步骤状态为待执行，同时清理旧错误和旧结果。
+	err = h.TaskStepService.ResetTaskStep(savedVideo.VideoID, stepName)
 	if err != nil {
 		h.App.Logger.Errorf("更新任务步骤状态失败: %v", err)
 		c.JSON(http.StatusInternalServerError, VideoListResponse{
@@ -325,14 +326,64 @@ func (h *VideoHandler) retryTaskStep(c *gin.Context) {
 	})
 }
 
-// deleteVideo 删除视频及其相关数据
+// runningStatuses 运行中状态：有后台进程（任务链 cron / 上传协程）正在读写该任务的
+// 目录或数据库行。此时删除会撞上正在写的文件、或让协程写入已不存在的记录，因此一律拒删。
+// 002 处理中 / 201 上传视频中 / 301 上传字幕中
+var runningStatuses = map[string]struct{}{
+	"002": {},
+	"201": {},
+	"301": {},
+}
+
+func isRunningStatus(status string) bool {
+	_, ok := runningStatuses[status]
+	return ok
+}
+
+// deleteOutcome 单条删除结果，用于按 ID 如实回报每条任务的删除情况
+type deleteOutcome struct {
+	ID           uint   `json:"id"`
+	VideoID      string `json:"video_id"`
+	FilesRemoved bool   `json:"files_removed"` // 本地媒体目录是否被删除
+	Note         string `json:"note,omitempty"`
+}
+
+type skipOutcome struct {
+	ID      uint   `json:"id"`
+	VideoID string `json:"video_id,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Reason  string `json:"reason"`
+}
+
+// hardDeleteOne 物理删除一个任务的全部痕迹：DB 记录（事务内，步骤+视频一起删）+ 本地媒体目录。
+// DB 删除失败直接返回错误（视为删除失败）；文件删除失败不回滚 DB，只如实记入 note，
+// 因为删除的核心目的是清掉占空间的本地视频，文件没删掉用户必须知道。
+func (h *VideoHandler) hardDeleteOne(v *model.SavedVideo) deleteOutcome {
+	outcome := deleteOutcome{ID: v.ID, VideoID: v.VideoID}
+
+	if err := h.SavedVideoService.HardDeleteWithSteps(v.ID, v.VideoID); err != nil {
+		outcome.Note = fmt.Sprintf("数据库删除失败: %v", err)
+		return outcome
+	}
+
+	removed, err := h.removeVideoFiles(v.VideoID)
+	switch {
+	case err != nil:
+		outcome.Note = fmt.Sprintf("数据库已删除，但本地文件清理失败: %v", err)
+	case removed:
+		outcome.FilesRemoved = true
+	default:
+		outcome.Note = "数据库已删除，未发现本地媒体目录"
+	}
+	return outcome
+}
+
+// deleteVideo 硬删除单条视频（供视频详情页 DELETE /videos/:id 使用）
 func (h *VideoHandler) deleteVideo(c *gin.Context) {
 	idStr := c.Param("id")
 
-	// 尝试解析为数字ID，如果失败则当作video_id处理
 	var savedVideo *model.SavedVideo
 	var err error
-
 	if id, parseErr := strconv.ParseUint(idStr, 10, 32); parseErr == nil {
 		savedVideo, err = h.SavedVideoService.GetByID(uint(id))
 	} else {
@@ -340,57 +391,114 @@ func (h *VideoHandler) deleteVideo(c *gin.Context) {
 	}
 
 	if err != nil {
-		h.App.Logger.Errorf("获取视频详情失败: %v", err)
-		c.JSON(http.StatusNotFound, VideoListResponse{
-			Code:    404,
-			Message: "视频不存在",
+		c.JSON(http.StatusNotFound, VideoListResponse{Code: 404, Message: "视频不存在"})
+		return
+	}
+
+	if isRunningStatus(savedVideo.Status) {
+		c.JSON(http.StatusBadRequest, VideoListResponse{
+			Code:    400,
+			Message: fmt.Sprintf("当前状态 %s 为运行中，请等待任务完成或失败后再删除", savedVideo.Status),
 		})
 		return
 	}
 
-	h.App.Logger.Infof("🗑️ 用户请求删除视频: %s (ID: %d)", savedVideo.VideoID, savedVideo.ID)
-
-	// 1. 删除相关的任务步骤
-	if err := h.TaskStepService.DeleteTaskStepsByVideoID(savedVideo.VideoID); err != nil {
-		h.App.Logger.Errorf("删除任务步骤失败: %v", err)
-		c.JSON(http.StatusInternalServerError, VideoListResponse{
-			Code:    500,
-			Message: "删除任务步骤失败",
-		})
+	h.App.Logger.Infof("🗑️ 硬删除视频: %s (ID: %d)", savedVideo.VideoID, savedVideo.ID)
+	outcome := h.hardDeleteOne(savedVideo)
+	if outcome.Note != "" && !outcome.FilesRemoved && strings.HasPrefix(outcome.Note, "数据库删除失败") {
+		c.JSON(http.StatusInternalServerError, VideoListResponse{Code: 500, Message: outcome.Note})
 		return
 	}
 
-	// 2. 删除视频文件（可选）
-	videoDir := h.getVideoDirectory(savedVideo.VideoID)
-	if _, err := os.Stat(videoDir); err == nil {
-		if err := os.RemoveAll(videoDir); err != nil {
-			h.App.Logger.Warnf("⚠️ 删除视频文件目录失败: %v", err)
-			// 不中断流程，继续删除数据库记录
-		} else {
-			h.App.Logger.Infof("✅ 已删除视频文件目录: %s", videoDir)
+	c.JSON(http.StatusOK, VideoListResponse{Code: 200, Message: "视频删除成功", Data: outcome})
+}
+
+// BatchDeleteRequest 批量删除请求：由前端显式给出要删除的任务 ID 列表（所见即所删）
+type BatchDeleteRequest struct {
+	IDs []uint `json:"ids"`
+}
+
+// batchDelete 按显式 ID 列表批量硬删除任务。运行中任务被跳过并在响应中说明；
+// 删除哪些完全由前端决定，后端不自行推断"历史"范围，避免与后台新建任务产生竞态。
+func (h *VideoHandler) batchDeleteVideos(c *gin.Context) {
+	var req BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, VideoListResponse{Code: 400, Message: "请提供要删除的任务 ID 列表"})
+		return
+	}
+
+	videos, err := h.SavedVideoService.GetByIDs(req.IDs)
+	if err != nil {
+		h.App.Logger.Errorf("查询待删除视频失败: %v", err)
+		c.JSON(http.StatusInternalServerError, VideoListResponse{Code: 500, Message: "查询待删除视频失败"})
+		return
+	}
+
+	// 标记查询到的 ID，找出请求里不存在的 ID
+	found := make(map[uint]struct{}, len(videos))
+	for i := range videos {
+		found[videos[i].ID] = struct{}{}
+	}
+
+	deleted := make([]deleteOutcome, 0, len(videos))
+	skipped := make([]skipOutcome, 0)
+
+	for _, id := range req.IDs {
+		if _, ok := found[id]; !ok {
+			skipped = append(skipped, skipOutcome{ID: id, Reason: "记录不存在"})
 		}
 	}
 
-	// 3. 删除数据库记录（软删除）
-	if err := h.SavedVideoService.DeleteVideo(savedVideo.ID); err != nil {
-		h.App.Logger.Errorf("删除视频记录失败: %v", err)
-		c.JSON(http.StatusInternalServerError, VideoListResponse{
-			Code:    500,
-			Message: "删除视频记录失败",
-		})
-		return
+	for i := range videos {
+		v := videos[i]
+		if isRunningStatus(v.Status) {
+			skipped = append(skipped, skipOutcome{ID: v.ID, VideoID: v.VideoID, Status: v.Status, Reason: "任务运行中，已跳过"})
+			continue
+		}
+		h.App.Logger.Infof("🗑️ 批量删除: %s (ID: %d)", v.VideoID, v.ID)
+		deleted = append(deleted, h.hardDeleteOne(&v))
 	}
 
-	h.App.Logger.Infof("✅ 视频删除成功: %s", savedVideo.VideoID)
+	h.App.Logger.Infof("✅ 批量删除完成: 成功 %d 条, 跳过 %d 条", len(deleted), len(skipped))
 
 	c.JSON(http.StatusOK, VideoListResponse{
 		Code:    200,
-		Message: "视频删除成功",
+		Message: fmt.Sprintf("已删除 %d 条任务，跳过 %d 条", len(deleted), len(skipped)),
 		Data: gin.H{
-			"video_id": savedVideo.VideoID,
-			"id":       savedVideo.ID,
+			"deleted": deleted,
+			"skipped": skipped,
 		},
 	})
+}
+
+// removeVideoFiles 删除视频的本地媒体目录，返回是否删除了目录。
+// 数据布局为 {FileUpDir}/{YYYY-MM-DD}/{videoID}/，日期目录不确定，用 glob 匹配所有日期目录。
+func (h *VideoHandler) removeVideoFiles(videoID string) (bool, error) {
+	baseDir := h.App.Config.FileUpDir
+	pattern := filepath.Join(baseDir, "*", videoID)
+
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return false, err
+	}
+
+	removedAny := false
+	var firstErr error
+	for _, dir := range matches {
+		info, statErr := os.Stat(dir)
+		if statErr != nil || !info.IsDir() {
+			continue
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		h.App.Logger.Infof("✅ 已删除本地视频目录: %s", dir)
+		removedAny = true
+	}
+	return removedAny, firstErr
 }
 
 // getVideoFiles 获取视频相关文件列表

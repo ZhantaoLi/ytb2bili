@@ -1,11 +1,16 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/difyz9/ytb2bili/internal/chain_task/base"
 	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
@@ -53,6 +58,28 @@ func (t *TranslateSubtitle) getCurrentAPIKey() (string, error) {
 	return apiKey, nil
 }
 
+func (t *TranslateSubtitle) getTranslationProvider() (string, error) {
+	if cfg := t.App.Config.DeepLXConfig; cfg != nil && cfg.Enabled {
+		if strings.TrimSpace(cfg.Endpoint) == "" {
+			return "", fmt.Errorf("DeepLX endpoint 未配置")
+		}
+		return "deeplx", nil
+	}
+
+	if cfg := t.App.Config.OpenAICompatibleConfig; cfg != nil && cfg.Enabled {
+		if strings.TrimSpace(cfg.BaseURL) == "" || strings.TrimSpace(cfg.APIKey) == "" || strings.TrimSpace(cfg.Model) == "" {
+			return "", fmt.Errorf("OpenAI 兼容翻译 API 未完整配置")
+		}
+		return "openai_compatible", nil
+	}
+
+	if _, err := t.getCurrentAPIKey(); err == nil {
+		return "deepseek", nil
+	} else {
+		return "", err
+	}
+}
+
 // SRTEntry SRT字幕条目
 type SRTEntry struct {
 	Index    int
@@ -64,18 +91,6 @@ func (t *TranslateSubtitle) Execute(context map[string]interface{}) bool {
 	t.App.Logger.Info("========================================")
 	t.App.Logger.Infof("开始翻译字幕: VideoID=%s", t.StateManager.VideoID)
 	t.App.Logger.Info("========================================")
-
-	// 0. 动态获取最新的API Key配置
-	currentAPIKey, err := t.getCurrentAPIKey()
-	if err != nil {
-		t.App.Logger.Errorf("❌ %v", err)
-		context["error"] = t.getTranslationError(err)
-		return false
-	}
-
-	t.App.Logger.Infof("🔑 使用DeepSeek API Key: %s", maskAPIKey(currentAPIKey))
-	// 更新当前使用的API Key
-	t.APIKey = currentAPIKey
 
 	// 1. 检查英文字幕文件是否存在（由 GenerateSubtitles 任务生成）
 	enSRTPath := filepath.Join(t.StateManager.CurrentDir, fmt.Sprintf("%s.srt", t.StateManager.VideoID))
@@ -105,6 +120,18 @@ func (t *TranslateSubtitle) Execute(context map[string]interface{}) bool {
 	}
 
 	t.App.Logger.Infof("📝 找到 %d 条字幕", len(srtEntries))
+
+	// 免费默认流程不要求配置任何外部翻译服务。
+	provider, err := t.getTranslationProvider()
+	if err != nil {
+		t.App.Logger.Warnf("外部翻译 API 未自行配置，免费模式跳过字幕翻译: %v", err)
+		context["en_srt_path"] = enSRTPath
+		context["translation_skipped"] = "cloud_translation_disabled"
+		context["translated_count"] = 0
+		return true
+	}
+
+	t.App.Logger.Infof("🔑 使用外部字幕翻译提供方: %s", provider)
 
 	// 3. 提取文本进行翻译
 	var texts []string
@@ -343,6 +370,10 @@ func (t *TranslateSubtitle) translateGroupSimple(texts []string) ([]string, erro
 		return []string{}, nil
 	}
 
+	if provider, err := t.getTranslationProvider(); err == nil && provider == "deeplx" {
+		return t.translateGroupWithDeepLX(texts)
+	}
+
 	// 直接组合文本
 	combinedText := strings.Join(texts, "\n###SENTENCE_BREAK###\n")
 
@@ -361,7 +392,7 @@ func (t *TranslateSubtitle) translateGroupSimple(texts []string) ([]string, erro
 
 注意：只返回翻译的中文文本，不要添加序号、解释或其他内容。`, len(texts), len(texts))
 
-	translatedText, err := t.callDeepSeekAPI(systemPrompt, combinedText)
+	translatedText, err := t.callConfiguredLLMAPI(systemPrompt, combinedText)
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +416,92 @@ func (t *TranslateSubtitle) translateGroupSimple(texts []string) ([]string, erro
 	}
 
 	return translatedSentences, nil
+}
+
+func (t *TranslateSubtitle) translateGroupWithDeepLX(texts []string) ([]string, error) {
+	translated := make([]string, 0, len(texts))
+	for i, text := range texts {
+		result, err := t.callDeepLXAPI(text)
+		if err != nil {
+			return nil, fmt.Errorf("DeepLX 翻译第 %d 句失败: %w", i+1, err)
+		}
+		translated = append(translated, result)
+	}
+	return translated, nil
+}
+
+func (t *TranslateSubtitle) callDeepLXAPI(text string) (string, error) {
+	cfg := t.App.Config.DeepLXConfig
+	if cfg == nil || !cfg.Enabled {
+		return "", fmt.Errorf("DeepLX 翻译服务未启用")
+	}
+	if strings.TrimSpace(cfg.Endpoint) == "" {
+		return "", fmt.Errorf("DeepLX endpoint 未配置")
+	}
+
+	sourceLang := cfg.SourceLang
+	if sourceLang == "" {
+		sourceLang = "EN"
+	}
+	targetLang := cfg.TargetLang
+	if targetLang == "" {
+		targetLang = "ZH"
+	}
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = 30
+	}
+
+	payload := map[string]string{
+		"text":        text,
+		"source_lang": sourceLang,
+		"target_lang": targetLang,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("序列化 DeepLX 请求失败: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, cfg.Endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("创建 DeepLX 请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: time.Duration(timeout) * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("发送 DeepLX 请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取 DeepLX 响应失败: %w", err)
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("DeepLX 返回状态码 %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Code    int    `json:"code"`
+		Data    string `json:"data"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("解析 DeepLX 响应失败: %w", err)
+	}
+	if result.Code != 0 && result.Code != http.StatusOK {
+		if result.Message != "" {
+			return "", fmt.Errorf("DeepLX 返回错误 %d: %s", result.Code, result.Message)
+		}
+		return "", fmt.Errorf("DeepLX 返回错误码 %d", result.Code)
+	}
+	if strings.TrimSpace(result.Data) == "" {
+		return "", fmt.Errorf("DeepLX 响应缺少 data")
+	}
+
+	return strings.TrimSpace(result.Data), nil
 }
 
 // translateTextsInGroups 分组翻译文本（带上下文）- 保留原方法作为备用
@@ -494,7 +611,7 @@ func (t *TranslateSubtitle) translateGroupWithContext(texts []string, prevContex
 
 注意：只返回翻译的中文文本，不要添加序号、解释或其他内容。`, len(texts), contextInfo, len(texts))
 
-	translatedText, err := t.callDeepSeekAPI(systemPrompt, combinedText)
+	translatedText, err := t.callConfiguredLLMAPI(systemPrompt, combinedText)
 	if err != nil {
 		return nil, err
 	}
@@ -518,6 +635,44 @@ func (t *TranslateSubtitle) translateGroupWithContext(texts []string, prevContex
 	}
 
 	return translatedSentences, nil
+}
+
+func (t *TranslateSubtitle) callConfiguredLLMAPI(systemPrompt, userPrompt string) (string, error) {
+	provider, err := t.getTranslationProvider()
+	if err != nil {
+		return "", err
+	}
+
+	switch provider {
+	case "openai_compatible":
+		return t.callOpenAICompatibleAPI(systemPrompt, userPrompt)
+	case "deepseek":
+		return t.callDeepSeekAPI(systemPrompt, userPrompt)
+	default:
+		return "", fmt.Errorf("不支持的 LLM 翻译提供方: %s", provider)
+	}
+}
+
+func (t *TranslateSubtitle) callOpenAICompatibleAPI(systemPrompt, userPrompt string) (string, error) {
+	cfg := t.App.Config.OpenAICompatibleConfig
+	if cfg == nil || !cfg.Enabled {
+		return "", fmt.Errorf("OpenAI 兼容翻译 API 未启用")
+	}
+
+	client := NewOpenAICompatibleClient(&OpenAIClientConfig{
+		APIKey:      cfg.APIKey,
+		BaseURL:     cfg.BaseURL,
+		Model:       cfg.Model,
+		Timeout:     cfg.Timeout,
+		MaxTokens:   cfg.MaxTokens,
+		Temperature: cfg.Temperature,
+	})
+	response, err := client.ChatCompletion(systemPrompt, userPrompt)
+	if err != nil {
+		return "", fmt.Errorf("调用 OpenAI 兼容翻译 API 失败: %v", err)
+	}
+
+	return response, nil
 }
 
 // callDeepSeekAPI 调用DeepSeek API（实时获取最新的API Key）
@@ -545,11 +700,11 @@ func (t *TranslateSubtitle) getTranslationError(err error) string {
 	errorStr := err.Error()
 
 	if strings.Contains(errorStr, "DeepSeek API Key 未配置") {
-		return "翻译失败：DeepSeek API Key未配置，请在设置中配置API Key"
+		return "外部翻译 API 未自行配置，已保留免费字幕流程"
 	}
 
 	if strings.Contains(errorStr, "401") || strings.Contains(errorStr, "unauthorized") {
-		return "翻译失败：DeepSeek API Key无效或已过期，请检查API Key设置"
+		return "外部云翻译不可用，已保留免费字幕流程"
 	}
 
 	if strings.Contains(errorStr, "429") || strings.Contains(errorStr, "rate limit") {
@@ -557,7 +712,7 @@ func (t *TranslateSubtitle) getTranslationError(err error) string {
 	}
 
 	if strings.Contains(errorStr, "insufficient_quota") || strings.Contains(errorStr, "quota") {
-		return "翻译失败：DeepSeek账户余额不足，请充值后重试"
+		return "翻译失败：云翻译服务当前不可用，已保留免费字幕流程"
 	}
 
 	if strings.Contains(errorStr, "timeout") || strings.Contains(errorStr, "deadline exceeded") {
@@ -577,7 +732,7 @@ func (t *TranslateSubtitle) getTranslationError(err error) string {
 	}
 
 	if strings.Contains(errorStr, "API Key") {
-		return "翻译失败：API Key配置问题，请检查设置"
+		return "外部翻译 API 配置不可用，已保留免费字幕流程"
 	}
 
 	// 通用翻译错误

@@ -57,6 +57,13 @@ func (s *UploadScheduler) SetUp() {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
 
+		// 自动上传开关：关闭时不自动上传，视频停在就绪态(200)等待用户手动上传。
+		// 注意：dashboard 的手动上传(ExecuteManualUpload)不经过这里，不受此开关影响。
+		if !s.App.Config.AutoUpload {
+			s.logger.Debug("自动上传已关闭，跳过本次自动上传检查")
+			return
+		}
+
 		now := time.Now()
 
 		// 1. 检查是否需要上传视频（每小时一次）

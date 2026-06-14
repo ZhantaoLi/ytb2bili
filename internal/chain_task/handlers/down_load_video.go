@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/difyz9/ytb2bili/internal/chain_task/base"
 	"github.com/difyz9/ytb2bili/internal/chain_task/manager"
@@ -25,6 +26,13 @@ type DownloadVideo struct {
 	DB                *gorm.DB
 	SavedVideoService *services.SavedVideoService
 }
+
+type ytDlpAuthAttempt struct {
+	label string
+	args  []string
+}
+
+const defaultYtDlpFormat = "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
 
 func NewDownloadVideo(name string, app *core.AppServer, stateManager *manager.StateManager, client *cos.CosClient, savedVideoService *services.SavedVideoService) *DownloadVideo {
 	return &DownloadVideo{
@@ -51,7 +59,7 @@ func (t *DownloadVideo) findYtDlp() (string, error) {
 
 	// 检查是否已安装
 	if manager.IsInstalled() {
-		path := manager.GetBinaryPath()
+		path := normalizeExecutablePath(manager.GetBinaryPath())
 		t.App.Logger.Debugf("找到 yt-dlp: %s", path)
 		return path, nil
 	}
@@ -59,11 +67,22 @@ func (t *DownloadVideo) findYtDlp() (string, error) {
 	return "", fmt.Errorf("未找到 yt-dlp，请确保已正确安装")
 }
 
+func normalizeExecutablePath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return absPath
+}
+
 // findLatestCookiesFile 查找最新的 cookies 文件
 func (t *DownloadVideo) findLatestCookiesFile() string {
 	// 1. 优先查找 data/cookies/ 目录下最新的用户提交的 cookies
 	cookiesDir := filepath.Join(t.App.Config.DataPath, "cookies")
-	
+
 	// 确保路径是绝对路径
 	if !filepath.IsAbs(cookiesDir) {
 		absPath, err := filepath.Abs(cookiesDir)
@@ -71,21 +90,21 @@ func (t *DownloadVideo) findLatestCookiesFile() string {
 			cookiesDir = absPath
 		}
 	}
-	
+
 	if entries, err := os.ReadDir(cookiesDir); err == nil {
 		var latestFile string
 		var latestTime int64
-		
+
 		for _, entry := range entries {
 			if entry.IsDir() {
 				continue
 			}
-			
+
 			name := entry.Name()
 			if !strings.HasPrefix(name, "cookies_") || !strings.HasSuffix(name, ".txt") {
 				continue
 			}
-			
+
 			filePath := filepath.Join(cookiesDir, name)
 			if info, err := entry.Info(); err == nil {
 				if info.ModTime().Unix() > latestTime {
@@ -94,7 +113,7 @@ func (t *DownloadVideo) findLatestCookiesFile() string {
 				}
 			}
 		}
-		
+
 		if latestFile != "" {
 			t.App.Logger.Infof("🍪 找到用户提交的最新 cookies 文件: %s", latestFile)
 			return latestFile
@@ -102,11 +121,11 @@ func (t *DownloadVideo) findLatestCookiesFile() string {
 	} else {
 		t.App.Logger.Warnf("⚠️ 无法读取 cookies 目录 %s: %v", cookiesDir, err)
 	}
-	
+
 	// 2. 兼容旧逻辑：查找配置文件目录下的 cookies.txt
 	configDir := filepath.Dir(t.App.Config.Path)
 	cookiesPath := filepath.Join(configDir, "cookies.txt")
-	
+
 	// 确保是绝对路径
 	if !filepath.IsAbs(cookiesPath) {
 		absPath, err := filepath.Abs(cookiesPath)
@@ -114,12 +133,12 @@ func (t *DownloadVideo) findLatestCookiesFile() string {
 			cookiesPath = absPath
 		}
 	}
-	
+
 	if _, err := os.Stat(cookiesPath); err == nil {
 		t.App.Logger.Infof("🍪 找到配置目录下的 cookies 文件: %s", cookiesPath)
 		return cookiesPath
 	}
-	
+
 	// 3. 查找当前目录的 cookies.txt
 	currentCookies := "cookies.txt"
 	if _, err := os.Stat(currentCookies); err == nil {
@@ -129,7 +148,7 @@ func (t *DownloadVideo) findLatestCookiesFile() string {
 			return absPath
 		}
 	}
-	
+
 	t.App.Logger.Warn("⚠️ 未找到任何可用的 cookies 文件")
 	return ""
 }
@@ -180,7 +199,7 @@ func (t *DownloadVideo) Execute(context map[string]interface{}) bool {
 
 	// 3. 尝试下载（先用代理，失败后不用代理重试）
 	videoURL := t.getVideoURL()
-	useProxy := t.App.Config != nil && t.App.Config.ProxyConfig != nil && 
+	useProxy := t.App.Config != nil && t.App.Config.ProxyConfig != nil &&
 		t.App.Config.ProxyConfig.UseProxy && t.App.Config.ProxyConfig.ProxyHost != ""
 
 	// 第一次尝试：使用代理（如果配置了）
@@ -199,73 +218,39 @@ func (t *DownloadVideo) Execute(context map[string]interface{}) bool {
 
 // executeDownload 执行实际的下载操作
 func (t *DownloadVideo) executeDownload(ytdlpPath, videoURL string, useProxy bool, context map[string]interface{}) bool {
-	// 构建下载命令
-	command := []string{
-		ytdlpPath,
-		"-P", t.StateManager.CurrentDir,
-		"-o", "%(id)s.%(ext)s",
-		"--merge-output-format", "mp4",
-	}
+	authAttempts := t.buildYtDlpAuthAttempts()
+	var lastErr error
+	var lastStderr []string
 
-	// 查找最新的 cookies 文件（优先使用用户提交的）
-	cookiesPath := t.findLatestCookiesFile()
-	
-	if cookiesPath != "" {
-		command = append(command, "--cookies", cookiesPath)
-		t.App.Logger.Infof("🍪 使用 Cookies 文件: %s", cookiesPath)
-	}
+	for i, authAttempt := range authAttempts {
+		command := t.buildDownloadCommand(ytdlpPath, videoURL, useProxy, authAttempt)
+		t.App.Logger.Infof("🔐 下载认证方式: %s", authAttempt.label)
+		t.App.Logger.Infof("执行命令: %s", strings.Join(command, " "))
+		t.App.Logger.Infof("下载目录: %s", t.StateManager.CurrentDir)
+		t.App.Logger.Infof("视频URL: %s", videoURL)
 
-	// 添加代理配置（如果需要）
-	if useProxy && t.App.Config != nil && t.App.Config.ProxyConfig != nil && 
-		t.App.Config.ProxyConfig.UseProxy && t.App.Config.ProxyConfig.ProxyHost != "" {
-		command = append(command, "--proxy", t.App.Config.ProxyConfig.ProxyHost)
-		t.App.Logger.Infof("📡 使用代理: %s", t.App.Config.ProxyConfig.ProxyHost)
-	} else if !useProxy {
-		t.App.Logger.Info("🌐 不使用代理")
-	}
+		stderrLines, err := t.runDownloadCommand(command)
+		if err == nil {
+			lastErr = nil
+			lastStderr = nil
+			break
+		}
 
-	// 添加视频标识符和URL
-	// command = append(command, "--", t.StateManager.VideoID)
-	command = append(command, videoURL)
-
-	t.App.Logger.Infof("执行命令: %s", strings.Join(command, " "))
-	t.App.Logger.Infof("下载目录: %s", t.StateManager.CurrentDir)
-	t.App.Logger.Infof("视频URL: %s", videoURL)
-
-	// 创建命令并设置输出管道
-	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Dir = t.StateManager.CurrentDir
-
-	// 捕获标准输出和标准错误
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		t.App.Logger.Errorf("❌ 创建标准输出管道失败: %v", err)
-		context["error"] = err.Error()
-		return false
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		t.App.Logger.Errorf("❌ 创建标准错误管道失败: %v", err)
-		context["error"] = err.Error()
-		return false
-	}
-
-	// 启动命令
-	if err := cmd.Start(); err != nil {
-		t.App.Logger.Errorf("❌ 启动下载命令失败: %v", err)
-		context["error"] = err.Error()
-		return false
-	}
-
-	// 实时读取输出
-	go t.logOutput(stdout, "INFO")
-	go t.logOutput(stderr, "ERROR")
-
-	// 等待命令完成
-	if err := cmd.Wait(); err != nil {
+		lastErr = err
+		lastStderr = stderrLines
 		t.App.Logger.Errorf("❌ 视频下载失败: %v", err)
-		context["error"] = fmt.Sprintf("下载失败: %v", err)
+
+		if isYouTubeAuthChallenge(stderrLines) && i+1 < len(authAttempts) {
+			t.App.Logger.Warn("⚠️ 当前 cookies 无法通过 YouTube 验证，自动切换到下一种认证方式重试")
+			continue
+		}
+
+		context["error"] = formatDownloadError(err, stderrLines)
+		return false
+	}
+
+	if lastErr != nil {
+		context["error"] = formatDownloadError(lastErr, lastStderr)
 		return false
 	}
 
@@ -315,14 +300,130 @@ func (t *DownloadVideo) executeDownload(ytdlpPath, videoURL string, useProxy boo
 	return true
 }
 
+func (t *DownloadVideo) buildDownloadCommand(ytdlpPath, videoURL string, useProxy bool, authAttempt ytDlpAuthAttempt) []string {
+	command := []string{
+		ytdlpPath,
+		"-P", t.StateManager.CurrentDir,
+		"-o", "%(id)s.%(ext)s",
+		"-f", defaultYtDlpFormat,
+		"--merge-output-format", "mp4",
+	}
+
+	command = append(command, authAttempt.args...)
+	command = appendYtDlpRuntimeArgs(command, exec.LookPath)
+
+	if useProxy && t.App.Config != nil && t.App.Config.ProxyConfig != nil &&
+		t.App.Config.ProxyConfig.UseProxy && t.App.Config.ProxyConfig.ProxyHost != "" {
+		command = append(command, "--proxy", t.App.Config.ProxyConfig.ProxyHost)
+		t.App.Logger.Infof("📡 使用代理: %s", t.App.Config.ProxyConfig.ProxyHost)
+	} else if !useProxy {
+		t.App.Logger.Info("🌐 不使用代理")
+	}
+
+	return append(command, videoURL)
+}
+
+func (t *DownloadVideo) runDownloadCommand(command []string) ([]string, error) {
+	cmd := exec.Command(command[0], command[1:]...)
+	cmd.Dir = t.StateManager.CurrentDir
+
+	// 捕获标准输出和标准错误
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		t.App.Logger.Errorf("❌ 创建标准输出管道失败: %v", err)
+		return nil, err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		t.App.Logger.Errorf("❌ 创建标准错误管道失败: %v", err)
+		return nil, err
+	}
+
+	// 启动命令
+	if err := cmd.Start(); err != nil {
+		t.App.Logger.Errorf("❌ 启动下载命令失败: %v", err)
+		return nil, err
+	}
+
+	// 实时读取输出，同时保留 stderr 用于返回给前端排障。
+	var outputWG sync.WaitGroup
+	var stderrLines []string
+	outputWG.Add(2)
+	go func() {
+		defer outputWG.Done()
+		t.logOutput(stdout, "INFO")
+	}()
+	go func() {
+		defer outputWG.Done()
+		stderrLines = t.logAndCollectOutput(stderr, "ERROR")
+	}()
+
+	// 等待命令完成
+	if err := cmd.Wait(); err != nil {
+		outputWG.Wait()
+		return stderrLines, err
+	}
+	outputWG.Wait()
+
+	return stderrLines, nil
+}
+
+type executableLookPath func(string) (string, error)
+
+func (t *DownloadVideo) buildYtDlpAuthAttempts() []ytDlpAuthAttempt {
+	cookiesPath := t.findLatestCookiesFile()
+	if cookiesPath == "" {
+		t.App.Logger.Info("🍪 未找到 cookies 文件，尝试从 Chrome 读取 cookies")
+		return buildYtDlpAuthAttemptsFromCookies("")
+	}
+
+	t.App.Logger.Infof("🍪 使用 Cookies 文件: %s", cookiesPath)
+	return buildYtDlpAuthAttemptsFromCookies(cookiesPath)
+}
+
+func buildYtDlpAuthAttemptsFromCookies(cookiesPath string) []ytDlpAuthAttempt {
+	if cookiesPath == "" {
+		return []ytDlpAuthAttempt{{
+			label: "Chrome 浏览器 cookies",
+			args:  []string{"--cookies-from-browser", "chrome"},
+		}}
+	}
+
+	return []ytDlpAuthAttempt{
+		{
+			label: "用户提交的 cookies 文件",
+			args:  []string{"--cookies", cookiesPath},
+		},
+		{
+			label: "Chrome 浏览器 cookies",
+			args:  []string{"--cookies-from-browser", "chrome"},
+		},
+	}
+}
+
+func appendYtDlpRuntimeArgs(args []string, lookPath executableLookPath) []string {
+	nodePath, err := lookPath("node")
+	if err != nil || nodePath == "" {
+		return args
+	}
+	return append(args, "--js-runtimes", "node:"+nodePath)
+}
+
 // logOutput 实时输出日志
 func (t *DownloadVideo) logOutput(reader io.Reader, level string) {
+	_ = t.logAndCollectOutput(reader, level)
+}
+
+func (t *DownloadVideo) logAndCollectOutput(reader io.Reader, level string) []string {
 	scanner := bufio.NewScanner(reader)
+	var lines []string
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
 			continue
 		}
+		lines = append(lines, line)
 
 		// 解析进度信息
 		if strings.Contains(line, "[download]") {
@@ -344,6 +445,40 @@ func (t *DownloadVideo) logOutput(reader io.Reader, level string) {
 			}
 		}
 	}
+	return lines
+}
+
+func formatDownloadError(err error, stderrLines []string) string {
+	detail := strings.TrimSpace(strings.Join(stderrLines, "\n"))
+	if detail == "" {
+		return fmt.Sprintf("下载失败: %v", err)
+	}
+
+	for _, line := range stderrLines {
+		if strings.Contains(line, "Sign in to confirm") || strings.Contains(line, "not a bot") {
+			return fmt.Sprintf("下载失败: YouTube 要求登录验证，需要 YouTube cookies。yt-dlp 输出: %s", strings.TrimSpace(line))
+		}
+	}
+
+	for _, line := range stderrLines {
+		if strings.Contains(line, "ERROR:") {
+			return fmt.Sprintf("下载失败: %s", strings.TrimSpace(line))
+		}
+	}
+
+	if len(stderrLines) > 3 {
+		stderrLines = stderrLines[len(stderrLines)-3:]
+	}
+	return fmt.Sprintf("下载失败: %s", strings.TrimSpace(strings.Join(stderrLines, " | ")))
+}
+
+func isYouTubeAuthChallenge(stderrLines []string) bool {
+	for _, line := range stderrLines {
+		if strings.Contains(line, "Sign in to confirm") || strings.Contains(line, "not a bot") {
+			return true
+		}
+	}
+	return false
 }
 
 // findDownloadedFile 查找下载的视频文件
@@ -393,57 +528,61 @@ type VideoMetadataInfo struct {
 // getVideoMetadata 使用 yt-dlp 获取视频元数据（带代理回退）
 func (t *DownloadVideo) getVideoMetadata(ytdlpPath string) (*VideoMetadataInfo, error) {
 	videoURL := t.getVideoURL()
-
-	// 构建基础命令参数
-	args := []string{"--dump-json", "--no-download"}
-	
-	// 添加 cookies 支持（使用最新的用户提交的 cookies）
-	cookiesPath := t.findLatestCookiesFile()
-	
-	if cookiesPath != "" {
-		args = append(args, "--cookies", cookiesPath)
-		t.App.Logger.Debugf("🍪 使用 Cookies 文件获取元数据: %s", cookiesPath)
-	} else {
-		// 从浏览器读取 cookies
-		args = append(args, "--cookies-from-browser", "chrome")
-		t.App.Logger.Debug("🍪 从 Chrome 浏览器读取 cookies 获取元数据")
-	}
-	
-	// 尝试使用代理
-	useProxy := t.App.Config != nil && t.App.Config.ProxyConfig != nil && 
+	authAttempts := t.buildYtDlpAuthAttempts()
+	useProxy := t.App.Config != nil && t.App.Config.ProxyConfig != nil &&
 		t.App.Config.ProxyConfig.UseProxy && t.App.Config.ProxyConfig.ProxyHost != ""
-	
-	if useProxy {
+
+	for i, authAttempt := range authAttempts {
+		output, err := t.runMetadataCommand(ytdlpPath, videoURL, useProxy, authAttempt)
+		if err == nil {
+			var metadata VideoMetadataInfo
+			if err := json.Unmarshal(output, &metadata); err != nil {
+				return nil, fmt.Errorf("解析元数据失败: %v", err)
+			}
+			return &metadata, nil
+		}
+
+		if isYouTubeAuthChallenge([]string{err.Error()}) && i+1 < len(authAttempts) {
+			t.App.Logger.Warn("⚠️ 当前 cookies 获取元数据失败，自动切换到下一种认证方式重试")
+			continue
+		}
+
+		if err != nil && useProxy {
+			t.App.Logger.Warnf("⚠️ 使用代理获取元数据失败，尝试不使用代理...")
+			output, err = t.runMetadataCommand(ytdlpPath, videoURL, false, authAttempt)
+			if err == nil {
+				t.App.Logger.Info("✓ 不使用代理成功获取元数据")
+				var metadata VideoMetadataInfo
+				if err := json.Unmarshal(output, &metadata); err != nil {
+					return nil, fmt.Errorf("解析元数据失败: %v", err)
+				}
+				return &metadata, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("获取元数据失败")
+}
+
+func (t *DownloadVideo) runMetadataCommand(ytdlpPath, videoURL string, useProxy bool, authAttempt ytDlpAuthAttempt) ([]byte, error) {
+	args := []string{"--dump-json", "--no-download"}
+	args = append(args, authAttempt.args...)
+	args = appendYtDlpRuntimeArgs(args, exec.LookPath)
+
+	if useProxy && t.App.Config != nil && t.App.Config.ProxyConfig != nil &&
+		t.App.Config.ProxyConfig.UseProxy && t.App.Config.ProxyConfig.ProxyHost != "" {
 		args = append(args, "--proxy", t.App.Config.ProxyConfig.ProxyHost)
 		t.App.Logger.Debugf("📡 使用代理获取元数据: %s", t.App.Config.ProxyConfig.ProxyHost)
 	}
-	
+
 	args = append(args, videoURL)
-	
-	// 第一次尝试（可能带代理）
+	t.App.Logger.Debugf("🔐 元数据认证方式: %s", authAttempt.label)
 	cmd := exec.Command(ytdlpPath, args...)
-	output, err := cmd.Output()
-	
-	// 如果使用代理失败，尝试不使用代理
-	if err != nil && useProxy {
-		t.App.Logger.Warnf("⚠️ 使用代理获取元数据失败，尝试不使用代理...")
-		argsNoProxy := []string{"--dump-json", "--no-download", videoURL}
-		cmd = exec.Command(ytdlpPath, argsNoProxy...)
-		output, err = cmd.Output()
-		if err != nil {
-			return nil, fmt.Errorf("获取元数据失败: %v", err)
-		}
-		t.App.Logger.Info("✓ 不使用代理成功获取元数据")
-	} else if err != nil {
-		return nil, fmt.Errorf("获取元数据失败: %v", err)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("获取元数据失败: %v: %s", err, strings.TrimSpace(string(output)))
 	}
-
-	var metadata VideoMetadataInfo
-	if err := json.Unmarshal(output, &metadata); err != nil {
-		return nil, fmt.Errorf("解析元数据失败: %v", err)
-	}
-
-	return &metadata, nil
+	return output, nil
 }
 
 // truncateString 截断字符串用于日志显示

@@ -124,7 +124,7 @@ cd ytb2bili
 cp config.toml.example config.toml
 ```
 
-Fill in database settings, download directory, API keys, proxy settings, and other required options. Start with [config.toml.example](config.toml.example).
+Fill in database settings, download directory, proxy settings, and other required options. The default free workflow does not require API keys; optional API or local-compatible integrations must be configured by the user. Start with [config.toml.example](config.toml.example).
 
 ### 3. Start the Backend
 
@@ -175,8 +175,8 @@ Common options include:
 
 - `server.port`: service port
 - `database.*`: database connection settings
-- `workflow.*`: download directory, proxy, ffmpeg, yt-dlp, and workflow options
-- `api2key.*`: unified backend capabilities for AI, credits, translation, and TTS
+- `workflow.*`: download directory, proxy, ffmpeg, yt-dlp, free subtitle generation, optional local translation, and upload pipeline
+- `agent.llm.*`: optional API/local-compatible integration; disabled by default and self-configured
 - `updater.enabled`: auto-update switch
 
 Build commands:

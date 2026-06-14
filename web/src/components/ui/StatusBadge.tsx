@@ -21,6 +21,12 @@ const STATUS_CONFIG = {
     icon: CheckCircle,
     description: '视频准备完成，等待上传'
   },
+  '250': {
+    label: '已准备（不上传）',
+    className: 'status-completed',
+    icon: CheckCircle,
+    description: '视频准备完成，但已从自动上传队列保留'
+  },
   '201': {
     label: '上传视频中',
     className: 'status-uploading',

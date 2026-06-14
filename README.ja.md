@@ -175,8 +175,8 @@ cp config.toml.example config.toml
 
 - `server.port`: サービスのポート
 - `database.*`: データベース接続情報
-- `workflow.*`: ダウンロード先、プロキシ、ffmpeg、yt-dlp などのワークフロー設定
-- `api2key.*`: AI、ポイント、翻訳、TTS などの統合バックエンド機能
+- `workflow.*`: ダウンロード先、プロキシ、ffmpeg、yt-dlp、無料字幕生成、任意のローカル翻訳、アップロードパイプライン設定
+- `agent.llm.*`: 任意の API / ローカル互換設定。デフォルト無効で、利用者が自分で設定します
 - `updater.enabled`: 自動更新フラグ
 
 ビルドコマンド:

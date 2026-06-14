@@ -28,7 +28,58 @@ func (h *ConfigHandler) RegisterRoutes(server *core.AppServer) {
 		config.PUT("/deepseek", h.updateDeepSeekConfig)
 		config.GET("/proxy", h.getProxyConfig)
 		config.PUT("/proxy", h.updateProxyConfig)
+		config.GET("/auto-upload", h.getAutoUploadConfig)
+		config.PUT("/auto-upload", h.updateAutoUploadConfig)
 	}
+}
+
+// AutoUploadConfigRequest 自动上传配置请求
+type AutoUploadConfigRequest struct {
+	Enabled *bool `json:"enabled,omitempty"` // 是否启用自动上传
+}
+
+// AutoUploadConfigResponse 自动上传配置响应
+type AutoUploadConfigResponse struct {
+	Enabled bool `json:"enabled"`
+}
+
+// getAutoUploadConfig 获取自动上传开关状态
+func (h *ConfigHandler) getAutoUploadConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data":    AutoUploadConfigResponse{Enabled: h.App.Config.AutoUpload},
+	})
+}
+
+// updateAutoUploadConfig 更新自动上传开关（热生效，无需重启）
+func (h *ConfigHandler) updateAutoUploadConfig(c *gin.Context) {
+	var req AutoUploadConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Enabled == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误，需要提供 enabled 字段",
+		})
+		return
+	}
+
+	h.App.Config.AutoUpload = *req.Enabled
+
+	if err := types.SaveConfig(h.App.Config); err != nil {
+		h.App.Logger.Errorf("保存自动上传配置失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "保存配置失败: " + err.Error(),
+		})
+		return
+	}
+
+	h.App.Logger.Infof("✅ 自动上传开关已更新为: %v（已热生效）", h.App.Config.AutoUpload)
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data":    AutoUploadConfigResponse{Enabled: h.App.Config.AutoUpload},
+	})
 }
 
 // DeepSeekConfigRequest DeepSeek配置请求

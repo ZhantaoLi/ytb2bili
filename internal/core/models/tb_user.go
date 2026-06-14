@@ -8,18 +8,15 @@ import (
 const TableNameTbUser = "tb_user"
 
 type TBUser struct {
-	Id        string     `gorm:"column:id;primaryKey;comment:主键" json:"id"` // 参数主键
-	Username  string     `gorm:"size:500;column:user_name;comment:登录名" json:"user_name"`
-	Email     string     `gorm:"size:255;column:email;comment:邮箱" json:"email"`
-	PassWord  string     `gorm:"size:255;column:pass_word;comment:密码" json:"pass_word"`
-	NickName  string     `gorm:"size:64;column:nick_name;comment:昵称" json:"nick_name"`
-	Status    string     `gorm:"size:10;column:status;comment:状态" json:"status"`
-	VipExpire *time.Time `gorm:"column:vip_expire;comment:会员到期时间" json:"vip_expire"` // 会员到期时间（可为空）
-	Phone     string     `gorm:"size:20;column:phone;comment:手机号" json:"phone"`
-	Avatar    string     `gorm:"size:255;column:avatar;comment:头像" json:"avatar"`
-	IsVip     bool       `gorm:"column:is_vip;comment:是否 VIP 会员;default:false" json:"is_vip"`
-	Platform  string     `gorm:"size:255;column:platform;comment:平台" json:"platform"`
-	Credit    int64      `gorm:"column:credit;comment:积分;default:0" json:"credit"`
+	Id       string `gorm:"column:id;primaryKey;comment:主键" json:"id"` // 参数主键
+	Username string `gorm:"size:500;column:user_name;comment:登录名" json:"user_name"`
+	Email    string `gorm:"size:255;column:email;comment:邮箱" json:"email"`
+	PassWord string `gorm:"size:255;column:pass_word;comment:密码" json:"pass_word"`
+	NickName string `gorm:"size:64;column:nick_name;comment:昵称" json:"nick_name"`
+	Status   string `gorm:"size:10;column:status;comment:状态" json:"status"`
+	Phone    string `gorm:"size:20;column:phone;comment:手机号" json:"phone"`
+	Avatar   string `gorm:"size:255;column:avatar;comment:头像" json:"avatar"`
+	Platform string `gorm:"size:255;column:platform;comment:平台" json:"platform"`
 
 	CreateBy   string    `gorm:"size:32;column:create_by;comment:创建者" json:"create_by"`
 	CreateTime time.Time `gorm:"column:create_time;comment:创建时间" json:"create_time"`

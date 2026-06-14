@@ -160,7 +160,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
         <button
           onClick={fetchVideos}
           disabled={refreshing}
-          className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+          className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           <span>刷新</span>
@@ -168,7 +168,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       </div>
 
       {/* 调度策略说明 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
         <div className="flex items-start space-x-3">
           <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
@@ -192,7 +192,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
           </h3>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           {videoUploadTasks.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -206,7 +206,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
                 const isExecuting = executingTasks.has(taskKey);
                 
                 return (
-                  <div key={task.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div key={task.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
@@ -265,7 +265,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
           </h3>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           {subtitleUploadTasks.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <Upload className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -279,7 +279,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
                 const isExecuting = executingTasks.has(taskKey);
                 
                 return (
-                  <div key={task.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div key={task.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
@@ -340,7 +340,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
 
       {/* 统计信息 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-100 rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600" />
@@ -352,7 +352,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-cyan-100 rounded-lg">
               <Upload className="w-5 h-5 text-cyan-600" />
@@ -364,7 +364,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
               <Calendar className="w-5 h-5 text-blue-600" />
@@ -380,7 +380,7 @@ export default function ScheduleManager({ onVideoSelect }: ScheduleManagerProps)
       </div>
 
       {/* 使用说明 */}
-      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
         <h4 className="font-medium text-gray-900 mb-3">使用说明</h4>
         <div className="text-sm text-gray-600 space-y-2">
           <p>1. <strong>自动上传</strong>：系统每5分钟检查一次，按照策略自动执行上传任务</p>
@@ -399,7 +399,7 @@ const PaginationControls = ({ currentPage, totalPages, onPageChange }: { current
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-1 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+        className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 disabled:opacity-50"
       >
         上一页
       </button>
@@ -409,7 +409,7 @@ const PaginationControls = ({ currentPage, totalPages, onPageChange }: { current
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-1 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+        className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 disabled:opacity-50"
       >
         下一页
       </button>

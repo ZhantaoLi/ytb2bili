@@ -126,7 +126,7 @@ cd ytb2bili
 cp config.toml.example config.toml
 ```
 
-按需填写数据库、下载目录、API Key、代理等配置。常用配置入口见 [config.toml.example](config.toml.example)。
+按需填写数据库、下载目录、代理等配置。默认免费流程不需要 API Key；如需启用外部 API 或本地兼容 API，必须由使用者自行配置。常用配置入口见 [config.toml.example](config.toml.example)。
 
 ### 3. 启动后端
 
@@ -177,8 +177,10 @@ cp config.toml.example config.toml
 
 - `server.port`：服务端口
 - `database.*`：数据库连接信息
-- `workflow.*`：下载目录、代理、ffmpeg、yt-dlp 等工作流配置
-- `api2key.*`：AI、积分、翻译、TTS 等统一后端能力
+- `workflow.*`：下载目录、代理、ffmpeg、yt-dlp、免费字幕生成、可选本地翻译、上传链路等流程配置
+- `agent.llm.*`：可选 API/本地兼容接口配置；默认不启用，需要使用者自行配置
+- `DeepLXConfig`：可选 DeepLX 字幕翻译；默认关闭，`endpoint` 必须自行配置
+- `OpenAICompatibleConfig`：可选 OpenAI 兼容字幕翻译；默认关闭，`base_url`、`model`、`api_key` 必须自行配置
 - `updater.enabled`：自动更新开关
 
 常用构建命令：

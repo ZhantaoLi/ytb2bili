@@ -81,16 +81,43 @@ func (g *GenerateMetadata) Execute(context map[string]interface{}) bool {
 		if success := g.executeWithGeminiText(context); success {
 			return true
 		}
-		g.App.Logger.Warn("⚠️ Gemini 文本分析失败，回退到 DeepSeek")
+		g.App.Logger.Warn("⚠️ Gemini 文本分析失败，回退到免费默认元数据")
 		useGemini = false
 	}
 
-	// 使用 DeepSeek（默认或回退）
-	if !useGemini {
+	// 只有显式启用 DeepSeek 时才调用云端元数据生成；默认免费流程直接兜底。
+	if !useGemini && g.App.Config.OpenAICompatibleConfig != nil && g.App.Config.OpenAICompatibleConfig.Enabled {
+		return g.executeWithOpenAICompatible(context)
+	}
+
+	if !useGemini && g.App.Config.DeepSeekTransConfig != nil && g.App.Config.DeepSeekTransConfig.Enabled {
 		return g.executeWithDeepSeek(context)
 	}
 
-	return false
+	return g.executeWithFreeFallback(context)
+}
+
+func (g *GenerateMetadata) executeWithFreeFallback(context map[string]interface{}) bool {
+	context["metadata_skipped"] = "cloud_metadata_disabled"
+	g.App.Logger.Info("外部元数据 API 未自行配置，免费模式使用默认标题和描述")
+
+	metadata := &VideoMetadata{
+		Title:       g.StateManager.VideoID,
+		Description: "自动上传的视频",
+		Tags:        []string{"视频"},
+	}
+	if g.SavedVideoService != nil {
+		if savedVideo, err := g.SavedVideoService.GetVideoByVideoID(g.StateManager.VideoID); err == nil && savedVideo != nil {
+			if title := strings.TrimSpace(savedVideo.Title); title != "" {
+				metadata.Title = title
+			}
+			if desc := strings.TrimSpace(savedVideo.Description); desc != "" {
+				metadata.Description = desc
+			}
+		}
+	}
+
+	return g.saveMetadataResults(metadata, context)
 }
 
 // executeWithDeepSeek 使用 DeepSeek 生成元数据
@@ -98,11 +125,8 @@ func (g *GenerateMetadata) executeWithDeepSeek(context map[string]interface{}) b
 	// 0. 动态获取最新的DeepSeek客户端
 	client, err := g.getCurrentDeepSeekClient()
 	if err != nil {
-		g.App.Logger.Errorf("❌ %v", err)
-		// 使用默认值而不是失败
-		context["video_title"] = g.StateManager.VideoID
-		context["video_description"] = "包含字幕的视频"
-		return true
+		g.App.Logger.Warnf("外部元数据 API 配置不可用，使用免费默认元数据: %v", err)
+		return g.executeWithFreeFallback(context)
 	}
 
 	g.App.Logger.Infof("🔑 使用 DeepSeek 配置生成元数据")
@@ -263,26 +287,9 @@ func (g *GenerateMetadata) generateMetadataFromDeepSeek(subtitleText string) (*V
 
 	g.App.Logger.Debugf("DeepSeek 原始返回: %s", content)
 
-	// 提取JSON部分（可能包含在代码块中）
-	content = strings.TrimSpace(content)
-	if strings.HasPrefix(content, "```json") {
-		content = strings.TrimPrefix(content, "```json")
-		content = strings.TrimSuffix(content, "```")
-	} else if strings.HasPrefix(content, "```") {
-		content = strings.TrimPrefix(content, "```")
-		content = strings.TrimSuffix(content, "```")
-	}
-	content = strings.TrimSpace(content)
-
-	// 解析JSON
-	var metadata VideoMetadata
-	if err := json.Unmarshal([]byte(content), &metadata); err != nil {
-		return nil, fmt.Errorf("解析元数据JSON失败: %v, 内容: %s", err, content)
-	}
-
-	// 验证必填字段
-	if metadata.Title == "" {
-		return nil, fmt.Errorf("生成的标题为空")
+	metadata, err := parseMetadataResponse(content)
+	if err != nil {
+		return nil, err
 	}
 
 	// Token使用情况
@@ -293,6 +300,122 @@ func (g *GenerateMetadata) generateMetadataFromDeepSeek(subtitleText string) (*V
 			usage.TotalTokens)
 	}
 
+	return metadata, nil
+}
+
+func (g *GenerateMetadata) executeWithOpenAICompatible(taskContext map[string]interface{}) bool {
+	cfg := g.App.Config.OpenAICompatibleConfig
+	if cfg == nil || !cfg.Enabled {
+		return g.executeWithFreeFallback(taskContext)
+	}
+
+	sourceText, err := g.metadataSourceText()
+	if err != nil {
+		g.App.Logger.Warnf("⚠️ 元数据输入不足，使用默认标题和描述: %v", err)
+		return g.executeWithFreeFallback(taskContext)
+	}
+
+	maxLength := 2000
+	if len([]rune(sourceText)) > maxLength {
+		runes := []rune(sourceText)
+		sourceText = string(runes[:maxLength]) + "..."
+	}
+
+	client := NewOpenAICompatibleClient(&OpenAIClientConfig{
+		APIKey:      cfg.APIKey,
+		BaseURL:     cfg.BaseURL,
+		Model:       cfg.Model,
+		Timeout:     cfg.Timeout,
+		MaxTokens:   cfg.MaxTokens,
+		Temperature: cfg.Temperature,
+	})
+
+	prompt := buildMetadataPrompt(sourceText)
+	content, usage, err := client.ChatCompletionWithUsage(
+		"你是一个专业的视频内容分析助手，擅长根据视频字幕或原始视频信息生成适合 B 站的中文标题、简介和标签。",
+		prompt,
+	)
+	if err != nil {
+		g.App.Logger.Errorf("❌ 调用 OpenAI 兼容元数据 API 失败: %v", err)
+		return g.executeWithFreeFallback(taskContext)
+	}
+	if usage != nil {
+		g.App.Logger.Infof("💰 OpenAI兼容元数据 Token使用: 输入=%d, 输出=%d, 总计=%d",
+			usage.PromptTokens,
+			usage.CompletionTokens,
+			usage.TotalTokens)
+	}
+
+	metadata, err := parseMetadataResponse(content)
+	if err != nil {
+		g.App.Logger.Errorf("❌ 解析 OpenAI 兼容元数据失败: %v", err)
+		return g.executeWithFreeFallback(taskContext)
+	}
+
+	return g.saveMetadataResults(metadata, taskContext)
+}
+
+func (g *GenerateMetadata) metadataSourceText() (string, error) {
+	for _, name := range []string{"zh.srt", fmt.Sprintf("%s.srt", g.StateManager.VideoID), "en.srt"} {
+		path := filepath.Join(g.StateManager.CurrentDir, name)
+		content, err := os.ReadFile(path)
+		if err == nil {
+			text := g.extractTextFromSRT(string(content))
+			if strings.TrimSpace(text) != "" {
+				return text, nil
+			}
+		}
+	}
+
+	if g.SavedVideoService != nil {
+		if savedVideo, err := g.SavedVideoService.GetVideoByVideoID(g.StateManager.VideoID); err == nil && savedVideo != nil {
+			text := strings.TrimSpace(savedVideo.Title + "\n" + savedVideo.Description)
+			if text != "" {
+				return text, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("未找到字幕或原始视频文本")
+}
+
+func buildMetadataPrompt(sourceText string) string {
+	return fmt.Sprintf(`请根据以下视频内容信息，生成一个适合发布到 B 站的中文标题、简介和3-5个标签。
+
+内容信息：
+%s
+
+要求：
+1. 标题简洁有吸引力，严格控制在30个中文字符以内
+2. 简介用中文说明视频主要内容和亮点，控制在600字以内
+3. 标签准确反映内容，3-5个即可
+4. 只返回 JSON，不要返回 Markdown 代码块或额外说明
+5. JSON 格式必须是：
+{
+  "title": "视频标题",
+  "description": "视频描述",
+  "tags": ["标签1", "标签2", "标签3"]
+}`, sourceText)
+}
+
+func parseMetadataResponse(content string) (*VideoMetadata, error) {
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "```json") {
+		content = strings.TrimPrefix(content, "```json")
+		content = strings.TrimSuffix(content, "```")
+	} else if strings.HasPrefix(content, "```") {
+		content = strings.TrimPrefix(content, "```")
+		content = strings.TrimSuffix(content, "```")
+	}
+	content = strings.TrimSpace(content)
+
+	var metadata VideoMetadata
+	if err := json.Unmarshal([]byte(content), &metadata); err != nil {
+		return nil, fmt.Errorf("解析元数据JSON失败: %v, 内容: %s", err, content)
+	}
+	if metadata.Title == "" {
+		return nil, fmt.Errorf("生成的标题为空")
+	}
 	return &metadata, nil
 }
 
@@ -476,6 +599,11 @@ func (g *GenerateMetadata) saveMetadataResults(metadata *VideoMetadata, taskCont
 	}
 
 	// 4. 保存到数据库
+	if g.SavedVideoService == nil {
+		g.App.Logger.Warn("⚠️ 未配置 SavedVideoService，跳过保存元数据到数据库")
+		return true
+	}
+
 	g.App.Logger.Info("💾 保存生成的元数据到数据库...")
 	savedVideo, err := g.SavedVideoService.GetVideoByVideoID(g.StateManager.VideoID)
 	if err != nil {

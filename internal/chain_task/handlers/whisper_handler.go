@@ -1,3 +1,6 @@
+//go:build whisper
+// +build whisper
+
 package handlers
 
 import (
@@ -30,7 +33,7 @@ func NewWhisperHandler(name string, app *core.AppServer, stateManager *manager.S
 	if language == "" {
 		language = "en" // 默认英语
 	}
-	
+
 	return &WhisperHandler{
 		BaseTask: base.BaseTask{
 			Name:         name,
@@ -46,33 +49,33 @@ func NewWhisperHandler(name string, app *core.AppServer, stateManager *manager.S
 
 func (h *WhisperHandler) Execute(context map[string]interface{}) bool {
 	fmt.Println("开始使用 Whisper 转录音频")
-	
+
 	// 检查 WAV 音频文件是否存在
 	if _, err := os.Stat(h.StateManager.OriginalWAV); os.IsNotExist(err) {
 		fmt.Printf("错误: WAV 音频文件不存在: %s\n", h.StateManager.OriginalWAV)
 		context["error"] = fmt.Sprintf("WAV 音频文件不存在: %s", h.StateManager.OriginalWAV)
 		return false
 	}
-	
+
 	// 检查模型文件是否存在
 	if _, err := os.Stat(h.ModelPath); os.IsNotExist(err) {
 		fmt.Printf("错误: Whisper 模型文件不存在: %s\n", h.ModelPath)
 		context["error"] = fmt.Sprintf("Whisper 模型文件不存在: %s", h.ModelPath)
 		return false
 	}
-	
+
 	fmt.Printf("📝 使用 Whisper 转录: %s\n", h.StateManager.OriginalWAV)
 	fmt.Printf("   模型: %s\n", h.ModelPath)
 	fmt.Printf("   语言: %s\n", h.Language)
 	fmt.Printf("   线程: %d\n", h.Threads)
-	
+
 	// 执行转录，生成 SRT 字幕文件
 	if err := h.transcribe(h.ModelPath, h.StateManager.OriginalWAV, h.Language, h.Threads, true, h.StateManager.OriginalSRT); err != nil {
 		fmt.Printf("❌ Whisper 转录失败: %v\n", err)
 		context["error"] = fmt.Sprintf("Whisper 转录失败: %v", err)
 		return false
 	}
-	
+
 	fmt.Printf("✅ Whisper 转录完成，字幕文件保存至: %s\n", h.StateManager.OriginalSRT)
 	context["subtitle_path"] = h.StateManager.OriginalSRT
 	return true

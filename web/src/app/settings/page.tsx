@@ -4,55 +4,89 @@ import { useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
 
 export default function SettingsPage() {
-  const [autoUpload, setAutoUpload] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const v = localStorage.getItem('biliup:autoUpload');
-        return v === '1';
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  });
+  const [autoUpload, setAutoUpload] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // 初始化：从后端读取自动上传开关真实状态
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    (async () => {
       try {
-        localStorage.setItem('biliup:autoUpload', autoUpload ? '1' : '0');
+        const res = await fetch('/api/v1/config/auto-upload');
+        const data = await res.json();
+        if (data.code === 200 && data.data) {
+          setAutoUpload(!!data.data.enabled);
+        } else {
+          setError('读取配置失败');
+        }
       } catch {
-        // ignore
+        setError('读取配置失败，请检查后端服务');
+      } finally {
+        setLoading(false);
       }
+    })();
+  }, []);
+
+  // 切换开关：写入后端并热生效；失败则回滚 UI
+  const handleToggle = async (next: boolean) => {
+    setSaving(true);
+    setError(null);
+    const prev = autoUpload;
+    setAutoUpload(next); // 乐观更新
+    try {
+      const res = await fetch('/api/v1/config/auto-upload', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = await res.json();
+      if (data.code !== 200) {
+        setAutoUpload(prev);
+        setError(data.message || '保存失败');
+      }
+    } catch {
+      setAutoUpload(prev);
+      setError('保存失败，请检查后端服务');
+    } finally {
+      setSaving(false);
     }
-  }, [autoUpload]);
+  };
 
   return (
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <Settings className="w-5 h-5 text-gray-600" />
-            <h2 className="text-lg font-medium text-gray-900">设置</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <Settings className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <h2 className="text-base md:text-lg font-medium text-gray-900 dark:text-white">设置</h2>
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="space-y-4">
-            <label className="flex items-center justify-between bg-gray-50 p-4 rounded-md">
+        <div className="p-4 md:p-6">
+          <div className="space-y-3 md:space-y-4">
+            <label className="flex items-center justify-between bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
               <div>
                 <div className="text-sm font-medium">自动上传</div>
-                <div className="text-xs text-gray-500">视频提交后自动开始上传任务</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  开启后，准备就绪的视频将由调度器每小时自动上传到 Bilibili；关闭则停在就绪态，需在任务管理中手动上传。
+                </div>
               </div>
               <input
                 type="checkbox"
                 checked={autoUpload}
-                onChange={(e) => setAutoUpload(e.target.checked)}
-                className="w-5 h-5"
+                disabled={loading || saving}
+                onChange={(e) => handleToggle(e.target.checked)}
+                className="w-5 h-5 disabled:opacity-50"
               />
             </label>
 
-            <div className="bg-blue-50 p-4 rounded-md">
-              <div className="text-sm text-blue-800">
-                <strong>提示：</strong> 更多设置项将在后续版本中添加。
+            {error && (
+              <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-md text-sm text-red-700 dark:text-red-400">{error}</div>
+            )}
+
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
+              <div className="text-sm text-blue-800 dark:text-blue-300">
+                <strong>提示：</strong> 该开关实时生效，无需重启服务。手动上传不受此开关影响。
               </div>
             </div>
           </div>

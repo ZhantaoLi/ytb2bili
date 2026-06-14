@@ -3,7 +3,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat&logo=docker)](https://hub.docker.com/r/difyz9/ytb2bili)
 [![Docker Pulls](https://img.shields.io/docker/pulls/difyz9/ytb2bili)](https://hub.docker.com/r/difyz9/ytb2bili)
 
-全自动视频搬运工具：下载 → AI 字幕 → 翻译 → 上传 B 站，一条链路完成。
+全自动视频搬运工具：下载 → 生成字幕 → 上传 B 站，一条链路默认免费完成。
 
 ---
 
@@ -34,59 +34,32 @@ cp config.toml.example config.toml
 
 用任意编辑器打开 `config.toml`，**数据库部分无需改动**，默认已与 `docker-compose.yml` 保持一致。
 
-#### 配置 LLM 翻译（三选一）
+#### 免费字幕流程
 
-首先确保翻译开关已打开：
+默认流程不需要任何云端 LLM Key。系统会生成并上传原始字幕；如果你在本机运行
+Ollama 等 OpenAI 兼容服务，可以再手动打开本地翻译增强。
+所有可选 API 或本地兼容 API 都需要使用者自行配置，项目不内置 Key，也不默认启用。
+
+保持免费默认配置：
 
 ```toml
 [workflow]
-llm_translation_enabled     = true
+llm_translation_enabled     = false
 llm_translation_source_lang = "en"       # 原始字幕语言
 llm_translation_target_lang = "zh-Hans"  # 目标语言（简体中文）
 ```
 
-然后按需选择 LLM 服务：
-
-**方案 A — DeepSeek（推荐，中文效果好，价格低）**
-
-> Key 申请：https://platform.deepseek.com
+可选本地 Ollama 翻译增强：
 
 ```toml
+[workflow]
+llm_translation_enabled = true
+
 [agent.llm]
-provider = "deepseek"
-api_key  = "sk-xxxxxxxxxxxxxxxxxxxxxxxx"
-model    = "deepseek-chat"
-```
-
-**方案 B — OpenAI**
-
-> Key 申请：https://platform.openai.com
-
-```toml
-[agent.llm]
-provider = "openai"
-api_key  = "sk-xxxxxxxxxxxxxxxxxxxxxxxx"
-model    = "gpt-4o-mini"
-```
-
-**方案 C — 兼容 OpenAI 接口（OpenRouter / 本地 Ollama 等）**
-
-```toml
-# OpenRouter 示例
-[agent.llm]
-provider = "openai"
-api_key  = "sk-or-v1-xxxxxxxxxxxxxxxx"
-base_url = "https://openrouter.ai/api/v1"
-model    = "anthropic/claude-3.5-sonnet"
-```
-
-```toml
-# 本地 Ollama 示例
-[agent.llm]
-provider = "openai"
+provider = "local"
 api_key  = "ollama"
 base_url = "http://host.docker.internal:11434/v1"
-model    = "qwen2.5:14b"
+model    = "qwen2.5:7b"
 ```
 
 ---
@@ -127,9 +100,9 @@ docker compose logs -f
 2. 粘贴 YouTube / TikTok 等平台视频链接
 3. 点击 **创建**，系统自动依次执行：
    - 下载视频（yt-dlp）
-   - 提取音频，生成字幕（Whisper）
-   - 翻译字幕（LLM）
-   - 生成标题 / 简介 / 标签（AI）
+   - 生成字幕
+   - 免费模式跳过外部翻译增强
+   - 使用原始标题 / 简介或默认元数据
    - 上传到 B 站并追加字幕
 
 ---
