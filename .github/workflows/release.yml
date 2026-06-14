@@ -134,5 +134,5 @@ docker pull zhantaoli/ytb2bili:latest
             dist/ytb2bili-linux-amd64.tar.gz \
             dist/ytb2bili-linux-arm64.tar.gz \
             dist/ytb2bili-darwin-amd64.tar.gz \
-            dist/ytb2ibili-darwin-arm64.tar.gz \
+            dist/ytb2bili-darwin-arm64.tar.gz \
             dist/checksums.txt
