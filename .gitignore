@@ -61,3 +61,5 @@ coverage.html
 # 前端构建产物
 web/out/
 
+ytb2bili.exe
+*.exe
