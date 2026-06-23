@@ -2,142 +2,65 @@
 
 [简体中文](README.zh-CN.md) | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-`ytb2bili` is a workflow system for local video translation playback and YouTube-to-Bilibili publishing. It includes a web admin panel, task-chain orchestration, subtitle processing, AI copy generation, subtitle audio synthesis, synchronized A/V preview, Bilibili upload, and subtitle upload.
+`ytb2bili` is a local workflow service for preparing YouTube videos and publishing them to Bilibili. The current stack is a Go backend with Gin/GORM/Fx, a Next.js admin UI, a task-chain scheduler, yt-dlp downloads, subtitle generation, free subtitle translation, optional AI metadata generation, and Bilibili upload.
 
-> Forked from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili) with gratitude 🙏
+The default flow is free to run. Optional API providers are disabled unless you configure your own endpoint and key.
 
-## Key Features
+## Current Features
 
-- Local video translation playback with translated subtitles and dubbed audio
-- End-to-end YouTube to Bilibili workflow: download, audio extraction, transcription, translation, metadata generation, and upload
-- Configurable task chain with step-level enable or disable control
-- AI integrations for translation, title, description, tag generation, and dubbed audio synthesis
-- Bilibili integration with QR-code login, video submission, subtitle upload, and account management
-- Modern web admin built with Go and Next.js
-  - Dark mode support with persistent theme preference
-  - Mobile-responsive design for all screen sizes
-  - Auto-upload toggle for flexible upload workflow
-  - Task history management with deletion capability
+- Download videos with `yt-dlp`, including proxy support and YouTube cookies fallback.
+- Generate subtitles from existing YouTube captions or the Bcut ASR branch.
+- Translate subtitles with free Bing first and Google fallback by default.
+- Optionally use DeepLX, DeepSeek, OpenAI-compatible APIs, or Gemini when self-configured.
+- Generate upload metadata and write `meta.json`.
+- Upload videos and subtitles to Bilibili after QR login.
+- Manage task history from the dashboard, including hard deletion of task records.
+- Keep automatic upload disabled by default so local runs stop at the ready-to-upload state.
 
-## 5-Minute Docker Deployment
+## Quick Start With Docker
 
-Docker Compose is the fastest way to get started. By default, it launches two services:
-
-- `mysql`: stores tasks, accounts, and runtime data
-- `ytb2bili`: web admin panel and processing service
-
-### 1. Prerequisites
-
-- Docker
-- Docker Compose
-
-### 2. Get Deployment Files
+The compose file is under `docker/`, not the repository root.
 
 ```bash
-git clone https://github.com/zhantaoli/ytb2bili.git
-cd ytb2bili
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili/docker
+cp config.toml.example config.toml
+# Edit config.toml with the current fields shown below before first start.
 docker compose up -d
+docker compose logs -f ytb2bili
 ```
 
-### 3. Minimal Configuration
+Open `http://localhost:8096`.
 
-The default `[database]` section already matches `docker-compose.yml`. Keep at least the following:
-
-```toml
-[server]
-host = "0.0.0.0"
-port = 8096
-static_dir = "./downloads"
-static_path = "/static"
-
-[database]
-type = "mysql"
-host = "mysql"
-port = 3306
-user = "ytb2bili"
-password = "ytb2bili@123"
-dbname = "bili_up"
-sslmode = ""
-timezone = "Asia/Shanghai"
-auto_migrate = true
-table_prefix = ""
-
-[workflow]
-download_dir = "./downloads"
-ytdlp_path = "/usr/local/bin/yt-dlp"
-ffmpeg_path = "/usr/bin/ffmpeg"
-
-# Add this if your network requires a proxy for YouTube:
-# proxy_url = "http://127.0.0.1:7890"
-```
-
-### 4. Start the Services
+Before the first admin login, add explicit admin credentials to the `ytb2bili` service environment or export them in the shell that starts the service:
 
 ```bash
-docker compose up -d
-docker compose logs -f
+YTB2BILI_ADMIN_USERNAME=owner
+YTB2BILI_ADMIN_PASSWORD=change-me-to-a-strong-password
+YTB2BILI_ADMIN_EMAIL=owner@example.local
+YTB2BILI_ACCOUNT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 ```
 
-Then open `http://localhost:8096`
-
-### 5. Basic Usage
-
-1. Open the admin panel
-2. Sign in with the Bilibili app QR code
-3. Create a task and paste the video link
-4. Wait for download, processing, and upload to finish
-
-Useful commands:
-
-```bash
-docker compose ps
-docker compose restart
-docker compose down
-```
-
-For Docker-specific details, see [docker/README.md](docker/README.md).
-
-## Architecture
-
-The project has three main parts:
-
-- Processing engine: Go backend for download, transcription, translation, metadata generation, audio synthesis, Bilibili upload, and subtitle upload
-- Admin panel: Next.js frontend for task management, configuration, account management, manual uploads, and synchronized translation playback review
-- Runtime support: `config.toml`, database, Docker assets, and project documentation
-
-## Repository Structure
-
-- `internal/`: backend application code, task chain, processing logic, and service wiring
-- `pkg/`: reusable packages, Bilibili integration, utilities, and models
-- `web/`: frontend web admin panel
-- `docker/`: Docker build and deployment files
-- `bin/`: example scripts, test helpers, and workflow files
+Use a 16, 24, or 32 byte value for `YTB2BILI_ACCOUNT_ENCRYPTION_KEY`, or a base64 value that decodes to one of those lengths. Without it, encrypted Bilibili account rows use a process-local key and may not survive restarts.
 
 ## Local Development
 
-### 1. Clone the Repository
+### Backend
 
 ```bash
 git clone https://github.com/ZhantaoLi/ytb2bili.git
 cd ytb2bili
-```
-
-### 2. Prepare Configuration
-
-```bash
 cp config.toml.example config.toml
-```
-
-Fill in database settings, download directory, proxy settings, and other required options. Optional API integrations are self-configured; the default free workflow does not require API keys. Start with [config.toml.example](config.toml.example).
-
-### 3. Start the Backend
-
-```bash
+# Edit config.toml with the current fields shown below before first start.
 go mod download
 go run main.go
 ```
 
-### 4. Start the Frontend
+`go run main.go` starts the HTTP server, database migrations, the preparation scheduler, and the upload scheduler. Keep `auto_upload = false` during local testing unless you intentionally want ready videos uploaded automatically.
+
+The backend listens on `http://localhost:8096` by default.
+
+### Frontend
 
 ```bash
 cd web
@@ -145,64 +68,171 @@ npm install
 npm run dev
 ```
 
-### 5. Workflow
+The frontend dev server listens on `http://localhost:3000`. Its API client defaults to `http://localhost:8096/api/v1`, so keep the Go backend running.
 
-1. Open the web admin panel
-2. Log in to a Bilibili account
-3. Upload a local video to generate translated subtitles and dubbed audio, then review them in synchronized playback
-4. Install the Chrome extension: https://api.github.com/repos/difyz9/ytb2bili_extension/releases/latest
-5. Open any YouTube video page and submit the link through the extension
-6. Check task status and logs in the admin panel
-7. Rerun steps, edit copy, or manually submit to Bilibili when needed
-
-## Processing Flow
-
-1. Import a local video or submit a YouTube link
-2. Download the video and thumbnail
-3. Extract audio
-4. Generate subtitles
-5. Translate subtitles
-6. Synthesize dubbed audio and preview with synchronized playback
-7. Generate title, description, and tags
-8. Upload the video to Bilibili
-9. Upload subtitles to Bilibili
-
-## Configuration and Build
-
-The main runtime configuration file is `config.toml`:
-
-```bash
-cp config.toml.example config.toml
-```
-
-Common options include:
-
-- `server.port`: service port
-- `database.*`: database connection settings
-- `workflow.*`: download directory, proxy, ffmpeg, yt-dlp, free subtitle generation, optional local translation, and upload pipeline
-- `DeepLXConfig`: optional DeepLX subtitle translation; disabled by default, configure `endpoint` yourself
-- `OpenAICompatibleConfig`: optional OpenAI-compatible subtitle translation; disabled by default, configure `base_url`, `model`, and `api_key` yourself
-- `updater.enabled`: auto-update switch
-
-Build commands:
+For a production-style build:
 
 ```bash
 make build
-make build-dev
-make build-linux-arm64
-make build-all
 ```
 
-If you need to extend the pipeline, start with the implementations under `internal/chain_task/`.
+Useful targets that exist today:
+
+- `make build`: build frontend assets and the Go binary.
+- `make build-web`: build only the static frontend and copy it to `internal/web/bili-up-web`.
+- `make build-api`: build only the Go backend.
+- `make build-prod`: production build with smaller binary flags.
+- `make quick-build`: build Go only without refreshing frontend assets.
+- `make test`: run Go tests.
+- `make dev`: run Air if installed.
+- `make lint`, `make fmt`, `make clean`, `make info`: quality and maintenance helpers.
+
+## Minimal Current Config
+
+The runtime config is loaded from `CONFIG_FILE` or `config.toml`. The current Go config uses top-level fields plus named TOML tables. Historical server/workflow-style fields are not the runtime source of truth.
+
+Local SQLite example:
+
+```toml
+listen = ":8096"
+environment = "development"
+debug = true
+fileUpDir = "./data"
+data_path = "./data"
+yt_dlp_path = ""
+auto_upload = false
+primary_ai_service = ""
+
+[database]
+type = "sqlite"
+database = "data/ytb2bili.db"
+timezone = "Asia/Shanghai"
+
+[auth]
+jwt_secret = ""
+jwt_expiration = 24
+session_secret = "change-this-session-secret"
+
+[api_auth]
+app_id = ""
+app_secret = ""
+cookies_decrypt_key = ""
+
+[ProxyConfig]
+use_proxy = false
+proxy_host = "http://127.0.0.1:10809"
+
+[WhisperConfig]
+enabled = true
+language = "en"
+model_path = ""
+threads = 0
+```
+
+Docker MySQL example:
+
+```toml
+listen = ":8096"
+environment = "production"
+debug = false
+fileUpDir = "/app/downloads"
+data_path = "/app/data"
+yt_dlp_path = ""
+auto_upload = false
+
+[database]
+type = "mysql"
+host = "mysql"
+port = 3306
+username = "ytb2bili"
+password = "ytb2bili@123"
+database = "bili_up"
+timezone = "Asia/Shanghai"
+```
+
+If you use Docker and want cookies/account data to persist outside the database, mount a data directory such as `./data:/app/data`.
+
+## Configurable Options
+
+- `listen`: backend listen address, for example `:8096`.
+- `environment`: runtime label, usually `development` or `production`.
+- `debug`: enables less-silent backend logging.
+- `fileUpDir`: local media workspace. Task directories are created below this path.
+- `data_path`: runtime data path, including uploaded YouTube cookie files.
+- `yt_dlp_path`: optional yt-dlp install directory. Leave empty to use common paths and `PATH`.
+- `auto_upload`: when `false`, prepared videos stop at status `200` for manual upload; when `true`, the upload scheduler can publish ready videos.
+- `primary_ai_service`: optional selector for AI-related flows; empty means automatic fallback logic.
+- `[database]`: `type`, `host`, `port`, `username`, `password`, `database`, `ssl_mode`, `timezone`. Supported types are `sqlite`, `mysql`, `postgres`, and `postgresql`.
+- `[auth]`: JWT and session settings for admin authentication.
+- `[api_auth]`: optional signed API credentials and cookie decrypt key.
+- `[ProxyConfig]`: `use_proxy` and `proxy_host`; used by yt-dlp and selected HTTP clients.
+- `[WhisperConfig]`: despite the historical name, `enabled = true` selects the Bcut subtitle branch. `language` controls the ASR language hint. Mimo ASR is no longer used.
+- `[DeepLXConfig]`: optional subtitle translation provider. Configure your own full `/translate` endpoint.
+- `[OpenAICompatibleConfig]`: optional OpenAI-compatible chat API for subtitle translation and metadata generation. Configure your own `base_url`, `model`, and `api_key`.
+- `[DeepSeekTransConfig]`: optional DeepSeek-compatible translation and metadata provider.
+- `[GeminiConfig]`: optional Gemini metadata provider. Set `enabled = true` and `use_for_metadata = true` to use it for metadata.
+- `[BilibiliConfig]`: upload metadata choices, including copyright/source, title and description source, custom templates, partition `tid`, dynamic text, and reply/reward switches.
+- `[TenCosConfig]`: optional Tencent COS storage settings.
+- `[AnalyticsConfig]`: optional analytics client settings.
+- `[TranslatorConfig]`, `[BaiduTransConfig]`: advanced translator framework settings; they are not required for the default task chain.
+
+## Free And Optional Provider Flow
+
+Subtitle translation provider order:
+
+1. DeepLX if enabled and configured.
+2. OpenAI-compatible API if enabled and complete.
+3. DeepSeek if enabled and configured.
+4. Free Bing translation.
+5. Free Google fallback.
+
+Metadata provider order:
+
+1. Gemini if enabled and configured for metadata.
+2. OpenAI-compatible API if enabled.
+3. DeepSeek if enabled.
+4. Free fallback from original title/description or the video ID.
+
+Subtitle generation:
+
+1. With `[WhisperConfig].enabled = true`, the Bcut branch first tries YouTube captions, then existing local subtitles, then Bcut ASR.
+2. With that branch disabled, the legacy `GenerateSubtitles` step expects subtitle JSON already stored in the database.
+
+## Usage Flow
+
+1. Prepare `config.toml` with a real `fileUpDir`, database config, optional proxy, and optional ASR/provider settings.
+2. Start the backend and, for UI development, start the frontend dev server.
+3. Log in as the configured admin user.
+4. Bind a Bilibili account by QR code.
+5. Submit a YouTube URL or video ID.
+6. Inspect task steps on the dashboard.
+7. Manually upload the prepared video, or set `auto_upload = true` only when you intentionally want scheduled upload.
+
+For YouTube bot checks, upload cookies from the UI or place `cookies.txt` beside `config.toml`. The downloader also tries Chrome cookies as a fallback on supported local environments.
 
 ## Validation Commands
 
 ```bash
-go test ./...
-go build -o ytb2bili main.go
-curl http://localhost:8096/health
+go test -timeout=60s ./...
+cd web && npx tsc --noEmit
+cd web && npm run lint
+cd web && npm run build:prod
+git diff --check
 ```
 
-## License and Contact
+Docs-only edits usually only need text checks and `git diff --check`, but use the full commands when code changes are involved.
 
-- License: [MIT License](LICENSE)
+## Repository Layout
+
+- `main.go`: application entrypoint, dependency wiring, schedulers, routes, and embedded frontend serving.
+- `internal/chain_task/`: preparation and upload task-chain logic.
+- `internal/handler/`: HTTP handlers and admin/API routes.
+- `internal/core/types/app_config.go`: authoritative runtime config structure.
+- `pkg/`: reusable packages, Bilibili account storage, auth, subtitle, translator, and utility code.
+- `web/`: Next.js admin frontend.
+- `internal/web/bili-up-web`: embedded static frontend output.
+- `docker/`: Docker Compose and container deployment files.
+
+## License
+
+[MIT License](LICENSE)

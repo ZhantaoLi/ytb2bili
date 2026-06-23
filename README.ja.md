@@ -2,140 +2,35 @@
 
 [简体中文](README.zh-CN.md) | [English](README.en.md) | [한국어](README.ko.md)
 
-`ytb2bili` は、ローカル動画の翻訳再生と YouTube から Bilibili への投稿を支援する処理システムです。Web 管理画面、タスクチェーン制御、字幕処理、AI による文案生成、字幕音声合成、音声と映像の同期プレビュー、Bilibili への動画投稿、字幕アップロードまでを一通り提供します。
+`ytb2bili` は、YouTube 動画をローカルで準備し、Bilibili へ投稿するためのワークフローサービスです。現在の構成は Go バックエンド、Next.js 管理画面、タスクチェーン、yt-dlp ダウンロード、字幕生成、無料字幕翻訳、任意の AI メタデータ生成、Bilibili 投稿です。
 
-## 主な機能
+デフォルトの処理は有料 API を必要としません。外部翻訳 API や大規模モデル API は、利用者が自分でエンドポイントとキーを設定した場合だけ有効になります。
 
-- ローカル動画の翻訳字幕生成と吹き替え音声生成、同期再生による確認
-- YouTube から Bilibili への一連の処理: 動画ダウンロード、音声抽出、字幕生成、翻訳、メタデータ生成、投稿
-- ステップごとに有効化できる設定可能なタスクチェーン
-- AI 翻訳、タイトル、概要、タグ生成、音声合成への対応
-- QR コードログイン、動画投稿、字幕アップロード、アカウント管理などの Bilibili 連携
-- Go バックエンドと Next.js フロントエンドによる管理画面
-  - ダークモード対応（テーマ設定を永続保存）
-  - モバイル対応レスポンシブデザイン（全画面サイズ対応）
-  - 自動アップロードの切り替え（柔軟なアップロード管理）
-  - タスク履歴管理（削除機能付き）
+## クイックスタート
 
-## 5 分でできる Docker デプロイ
-
-最も簡単な起動方法は Docker Compose です。デフォルトで次の 2 サービスが起動します。
-
-- `mysql`: タスク、アカウント、実行データの保存
-- `ytb2bili`: Web 管理画面と処理サービス
-
-### 1. 前提条件
-
-- Docker
-- Docker Compose
-
-### 2. デプロイ用ファイルの取得
+Docker Compose ファイルは `docker/` 配下にあります。
 
 ```bash
 git clone https://github.com/ZhantaoLi/ytb2bili.git
-cd ytb2bili
-docker compose up -d
-```
-
-### 3. 最小構成
-
-`[database]` の初期設定は `docker-compose.yml` と整合しています。少なくとも次の設定を残してください。
-
-```toml
-[server]
-host = "0.0.0.0"
-port = 8096
-static_dir = "./downloads"
-static_path = "/static"
-
-[database]
-type = "mysql"
-host = "mysql"
-port = 3306
-user = "ytb2bili"
-password = "ytb2bili@123"
-dbname = "bili_up"
-sslmode = ""
-timezone = "Asia/Shanghai"
-auto_migrate = true
-table_prefix = ""
-
-[workflow]
-download_dir = "./downloads"
-ytdlp_path = "/usr/local/bin/yt-dlp"
-ffmpeg_path = "/usr/bin/ffmpeg"
-
-# YouTube への接続にプロキシが必要な場合:
-# proxy_url = "http://127.0.0.1:7890"
-```
-
-### 4. サービス起動
-
-```bash
-docker compose up -d
-docker compose logs -f
-```
-
-起動後に `http://localhost:8096` を開いてください。
-
-### 5. 基本的な使い方
-
-1. 管理画面を開く
-2. Bilibili アプリで QR コードログインする
-3. タスクを新規作成して動画リンクを貼り付ける
-4. ダウンロード、処理、投稿が完了するまで待つ
-
-よく使うコマンド:
-
-```bash
-docker compose ps
-docker compose restart
-docker compose down
-```
-
-Docker 関連の詳細は [docker/README.md](docker/README.md) を参照してください。
-
-## アーキテクチャ
-
-このプロジェクトは主に 3 つの部分で構成されています。
-
-- 処理エンジン: Go バックエンドがダウンロード、文字起こし、翻訳、メタデータ生成、音声合成、Bilibili 投稿、字幕アップロードを担当
-- 管理画面: Next.js フロントエンドがタスク管理、設定、アカウント管理、手動アップロード、同期プレビューを担当
-- 実行基盤: `config.toml`、データベース、Docker 関連ファイル、ドキュメント
-
-## リポジトリ構成
-
-- `internal/`: バックエンド本体、タスクチェーン、処理ロジック、サービス構成
-- `pkg/`: 再利用可能なパッケージ、Bilibili 連携、ユーティリティ、モデル
-- `web/`: Web 管理画面のフロントエンド
-- `docker/`: Docker ビルド、実行、デプロイ用ファイル
-- `bin/`: サンプルスクリプト、テスト補助、ワークフローファイル
-
-## ローカル開発
-
-### 1. リポジトリを取得
-
-```bash
-git clone https://github.com/ZhantaoLi/ytb2bili.git
-cd ytb2bili
-```
-
-### 2. 設定ファイルを準備
-
-```bash
+cd ytb2bili/docker
 cp config.toml.example config.toml
+# 初回起動前に、下の現在の設定例に合わせて config.toml を修正してください。
+docker compose up -d
+docker compose logs -f ytb2bili
 ```
 
-データベース、ダウンロード先、API キー、プロキシなどを必要に応じて設定します。まずは [config.toml.example](config.toml.example) を確認してください。
-
-### 3. バックエンド起動
+ローカルバックエンド:
 
 ```bash
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili
+cp config.toml.example config.toml
+# 初回起動前に、下の現在の設定例に合わせて config.toml を修正してください。
 go mod download
 go run main.go
 ```
 
-### 4. フロントエンド起動
+フロントエンド開発:
 
 ```bash
 cd web
@@ -143,63 +38,101 @@ npm install
 npm run dev
 ```
 
-### 5. 利用の流れ
+統合アプリは `http://localhost:8096`、フロントエンド開発サーバーは `http://localhost:3000` です。
 
-1. Web 管理画面を開く
-2. Bilibili アカウントでログインする
-3. ローカル動画をアップロードして翻訳字幕と吹き替え音声を生成し、同期再生で確認する
-4. Chrome 拡張をインストールする: https://api.github.com/repos/difyz9/ytb2bili_extension/releases/latest
-5. 任意の YouTube 動画ページを開き、拡張からリンクを送信する
-6. 管理画面でタスク状況とログを確認する
-7. 必要に応じてステップ再実行、文案編集、手動投稿を行う
-
-## 処理フロー
-
-1. ローカル動画を取り込む、または YouTube リンクを送信する
-2. 動画とサムネイルをダウンロードする
-3. 音声を抽出する
-4. 字幕を生成する
-5. 字幕を翻訳する
-6. 吹き替え音声を合成し、同期再生で確認する
-7. タイトル、概要、タグを生成する
-8. Bilibili に動画を投稿する
-9. Bilibili に字幕をアップロードする
-
-## 設定とビルド
-
-メインの設定ファイルは `config.toml` です。
+初回ログイン前に管理者情報を明示的に設定してください。
 
 ```bash
-cp config.toml.example config.toml
+YTB2BILI_ADMIN_USERNAME=owner
+YTB2BILI_ADMIN_PASSWORD=change-me-to-a-strong-password
+YTB2BILI_ADMIN_EMAIL=owner@example.local
+YTB2BILI_ACCOUNT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 ```
 
-主な設定項目:
+## 実行時の注意
 
-- `server.port`: サービスのポート
-- `database.*`: データベース接続情報
-- `workflow.*`: ダウンロード先、プロキシ、ffmpeg、yt-dlp、無料字幕生成、任意のローカル翻訳、アップロードパイプライン設定
-- `agent.llm.*`: 任意の API / ローカル互換設定。デフォルト無効で、利用者が自分で設定します
-- `updater.enabled`: 自動更新フラグ
+- `CONFIG_FILE` が設定されていればそのファイルを読み、未設定なら `config.toml` を読みます。
+- `go run main.go` は HTTP サーバー、DB マイグレーション、準備タスク、アップロードスケジューラーを起動します。
+- ローカル検証では `auto_upload = false` を推奨します。動画は投稿前の準備完了状態で止まります。
+- Bilibili 投稿には QR ログインと有効なアカウント cookie が必要です。
+- YouTube ダウンロードには proxy や cookies が必要になる場合があります。
 
-ビルドコマンド:
+## 最小設定
+
+```toml
+listen = ":8096"
+environment = "development"
+debug = true
+fileUpDir = "./data"
+data_path = "./data"
+yt_dlp_path = ""
+auto_upload = false
+
+[database]
+type = "sqlite"
+database = "data/ytb2bili.db"
+timezone = "Asia/Shanghai"
+
+[ProxyConfig]
+use_proxy = false
+proxy_host = "http://127.0.0.1:10809"
+
+[WhisperConfig]
+enabled = true
+language = "en"
+model_path = ""
+threads = 0
+```
+
+Docker の MySQL 設定例:
+
+```toml
+[database]
+type = "mysql"
+host = "mysql"
+port = 3306
+username = "ytb2bili"
+password = "ytb2bili@123"
+database = "bili_up"
+timezone = "Asia/Shanghai"
+```
+
+## 設定項目
+
+- `listen`, `environment`, `debug`, `fileUpDir`, `data_path`, `yt_dlp_path`, `auto_upload`, `primary_ai_service`.
+- `[database]`: `type`, `host`, `port`, `username`, `password`, `database`, `ssl_mode`, `timezone`.
+- `[auth]`, `[api_auth]`: 管理者ログイン、JWT、任意の署名付き API 認証。
+- `[ProxyConfig]`: yt-dlp と一部 HTTP クライアントの proxy 設定。
+- `[WhisperConfig]`: 歴史的な名前ですが、`enabled = true` は Bcut 字幕分岐を選択します。Mimo ASR は使用しません。
+- `[DeepLXConfig]`, `[OpenAICompatibleConfig]`, `[DeepSeekTransConfig]`, `[GeminiConfig]`: 利用者が自分で設定する任意の翻訳・メタデータ API。
+- `[BilibiliConfig]`: タイトル、説明、テンプレート、区分、著作権、投稿オプション。
+- `[TenCosConfig]`, `[AnalyticsConfig]`, `[TranslatorConfig]`, `[BaiduTransConfig]`: 高度な任意設定。
+
+## 無料フロー
+
+字幕翻訳は設定済みプロバイダーを優先し、未設定なら無料 Bing 翻訳、失敗時に Google へフォールバックします。メタデータ生成は Gemini、OpenAI 互換 API、DeepSeek を試し、未設定なら元動画のタイトル・説明または動画 ID を使います。
+
+字幕生成では `[WhisperConfig].enabled = true` を設定すると Bcut 分岐を使います。この分岐は YouTube 字幕、既存字幕、Bcut ASR の順で試します。
+
+## ビルドと検証
 
 ```bash
 make build
-make build-dev
-make build-linux-arm64
-make build-all
+make build-web
+make build-api
+make build-prod
+make quick-build
+make test
 ```
-
-パイプラインを拡張する場合は、まず `internal/chain_task/` 配下の実装を確認してください。
-
-## 検証コマンド
 
 ```bash
-go test ./...
-go build -o ytb2bili main.go
-curl http://localhost:8096/health
+go test -timeout=60s ./...
+cd web && npx tsc --noEmit
+cd web && npm run lint
+cd web && npm run build:prod
+git diff --check
 ```
 
-## ライセンスと連絡先
+## ライセンス
 
-- ライセンス: [MIT License](LICENSE)
+[MIT License](LICENSE)

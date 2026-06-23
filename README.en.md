@@ -2,140 +2,35 @@
 
 [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-`ytb2bili` is a workflow system for local video translation playback and YouTube-to-Bilibili publishing. It includes a web admin panel, task-chain orchestration, subtitle processing, AI copy generation, subtitle audio synthesis, synchronized A/V preview, Bilibili upload, and subtitle upload.
+`ytb2bili` is a local workflow service for preparing YouTube videos and publishing them to Bilibili. It uses a Go backend, a Next.js admin UI, scheduled task chains, yt-dlp downloads, subtitle generation, free subtitle translation, optional AI metadata generation, and Bilibili upload.
 
-## Key Features
+The default workflow does not require paid APIs. All external model or translation APIs are disabled until you configure your own endpoint and key.
 
-- Local video translation playback with translated subtitles and dubbed audio
-- End-to-end YouTube to Bilibili workflow: download, audio extraction, transcription, translation, metadata generation, and upload
-- Configurable task chain with step-level enable or disable control
-- AI integrations for translation, title, description, tag generation, and dubbed audio synthesis
-- Bilibili integration with QR-code login, video submission, subtitle upload, and account management
-- Modern web admin built with Go and Next.js
-  - Dark mode support with persistent theme preference
-  - Mobile-responsive design for all screen sizes
-  - Auto-upload toggle for flexible upload workflow
-  - Task history management with deletion capability
+## Quick Start
 
-## 5-Minute Docker Deployment
-
-Docker Compose is the fastest way to get started. By default, it launches two services:
-
-- `mysql`: stores tasks, accounts, and runtime data
-- `ytb2bili`: web admin panel and processing service
-
-### 1. Prerequisites
-
-- Docker
-- Docker Compose
-
-### 2. Get Deployment Files
+Docker:
 
 ```bash
 git clone https://github.com/ZhantaoLi/ytb2bili.git
-cd ytb2bili
-docker compose up -d
-```
-
-### 3. Minimal Configuration
-
-The default `[database]` section already matches `docker-compose.yml`. Keep at least the following:
-
-```toml
-[server]
-host = "0.0.0.0"
-port = 8096
-static_dir = "./downloads"
-static_path = "/static"
-
-[database]
-type = "mysql"
-host = "mysql"
-port = 3306
-user = "ytb2bili"
-password = "ytb2bili@123"
-dbname = "bili_up"
-sslmode = ""
-timezone = "Asia/Shanghai"
-auto_migrate = true
-table_prefix = ""
-
-[workflow]
-download_dir = "./downloads"
-ytdlp_path = "/usr/local/bin/yt-dlp"
-ffmpeg_path = "/usr/bin/ffmpeg"
-
-# Add this if your network requires a proxy for YouTube:
-# proxy_url = "http://127.0.0.1:7890"
-```
-
-### 4. Start the Services
-
-```bash
-docker compose up -d
-docker compose logs -f
-```
-
-Then open `http://localhost:8096`
-
-### 5. Basic Usage
-
-1. Open the admin panel
-2. Sign in with the Bilibili app QR code
-3. Create a task and paste the video link
-4. Wait for download, processing, and upload to finish
-
-Useful commands:
-
-```bash
-docker compose ps
-docker compose restart
-docker compose down
-```
-
-For Docker-specific details, see [docker/README.md](docker/README.md).
-
-## Architecture
-
-The project has three main parts:
-
-- Processing engine: Go backend for download, transcription, translation, metadata generation, audio synthesis, Bilibili upload, and subtitle upload
-- Admin panel: Next.js frontend for task management, configuration, account management, manual uploads, and synchronized translation playback review
-- Runtime support: `config.toml`, database, Docker assets, and project documentation
-
-## Repository Structure
-
-- `internal/`: backend application code, task chain, processing logic, and service wiring
-- `pkg/`: reusable packages, Bilibili integration, utilities, and models
-- `web/`: frontend web admin panel
-- `docker/`: Docker build and deployment files
-- `bin/`: example scripts, test helpers, and workflow files
-
-## Local Development
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/ZhantaoLi/ytb2bili.git
-cd ytb2bili
-```
-
-### 2. Prepare Configuration
-
-```bash
+cd ytb2bili/docker
 cp config.toml.example config.toml
+# Edit config.toml with the current fields shown below before first start.
+docker compose up -d
+docker compose logs -f ytb2bili
 ```
 
-Fill in database settings, download directory, proxy settings, and other required options. The default free workflow does not require API keys; optional API or local-compatible integrations must be configured by the user. Start with [config.toml.example](config.toml.example).
-
-### 3. Start the Backend
+Local backend:
 
 ```bash
+git clone https://github.com/ZhantaoLi/ytb2bili.git
+cd ytb2bili
+cp config.toml.example config.toml
+# Edit config.toml with the current fields shown below before first start.
 go mod download
 go run main.go
 ```
 
-### 4. Start the Frontend
+Frontend dev server:
 
 ```bash
 cd web
@@ -143,63 +38,122 @@ npm install
 npm run dev
 ```
 
-### 5. Workflow
+Open the integrated app at `http://localhost:8096`, or the frontend dev server at `http://localhost:3000`.
 
-1. Open the web admin panel
-2. Log in to a Bilibili account
-3. Upload a local video to generate translated subtitles and dubbed audio, then review them in synchronized playback
-4. Install the Chrome extension: https://api.github.com/repos/difyz9/ytb2bili_extension/releases/latest
-5. Open any YouTube video page and submit the link through the extension
-6. Check task status and logs in the admin panel
-7. Rerun steps, edit copy, or manually submit to Bilibili when needed
-
-## Processing Flow
-
-1. Import a local video or submit a YouTube link
-2. Download the video and thumbnail
-3. Extract audio
-4. Generate subtitles
-5. Translate subtitles
-6. Synthesize dubbed audio and preview with synchronized playback
-7. Generate title, description, and tags
-8. Upload the video to Bilibili
-9. Upload subtitles to Bilibili
-
-## Configuration and Build
-
-The main runtime configuration file is `config.toml`:
+Before first admin login, configure:
 
 ```bash
-cp config.toml.example config.toml
+YTB2BILI_ADMIN_USERNAME=owner
+YTB2BILI_ADMIN_PASSWORD=change-me-to-a-strong-password
+YTB2BILI_ADMIN_EMAIL=owner@example.local
+YTB2BILI_ACCOUNT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 ```
 
-Common options include:
+## Runtime Notes
 
-- `server.port`: service port
-- `database.*`: database connection settings
-- `workflow.*`: download directory, proxy, ffmpeg, yt-dlp, free subtitle generation, optional local translation, and upload pipeline
-- `agent.llm.*`: optional API/local-compatible integration; disabled by default and self-configured
-- `updater.enabled`: auto-update switch
+- `CONFIG_FILE` selects the config file. If unset, `config.toml` is used.
+- `go run main.go` starts migrations, the preparation scheduler, and the upload scheduler.
+- `auto_upload = false` is the recommended local default. Prepared videos stop at status `200` for manual upload.
+- Bilibili upload requires QR login and valid account cookies.
+- YouTube downloads may require proxy and cookies.
 
-Build commands:
+## Minimal Config
+
+```toml
+listen = ":8096"
+environment = "development"
+debug = true
+fileUpDir = "./data"
+data_path = "./data"
+yt_dlp_path = ""
+auto_upload = false
+
+[database]
+type = "sqlite"
+database = "data/ytb2bili.db"
+timezone = "Asia/Shanghai"
+
+[auth]
+jwt_secret = ""
+jwt_expiration = 24
+session_secret = "change-this-session-secret"
+
+[api_auth]
+app_id = ""
+app_secret = ""
+cookies_decrypt_key = ""
+
+[ProxyConfig]
+use_proxy = false
+proxy_host = "http://127.0.0.1:10809"
+
+[WhisperConfig]
+enabled = true
+language = "en"
+model_path = ""
+threads = 0
+```
+
+Docker MySQL config uses the current field names:
+
+```toml
+[database]
+type = "mysql"
+host = "mysql"
+port = 3306
+username = "ytb2bili"
+password = "ytb2bili@123"
+database = "bili_up"
+timezone = "Asia/Shanghai"
+```
+
+## Configurable Options
+
+- `listen`, `environment`, `debug`, `fileUpDir`, `data_path`, `yt_dlp_path`, `auto_upload`, `primary_ai_service`.
+- `[database]`: `type`, `host`, `port`, `username`, `password`, `database`, `ssl_mode`, `timezone`.
+- `[auth]` and `[api_auth]`: admin JWT/session settings and optional signed API auth.
+- `[ProxyConfig]`: proxy switch and proxy URL.
+- `[WhisperConfig]`: enables the Bcut subtitle branch; Mimo ASR is no longer used.
+- `[DeepLXConfig]`, `[OpenAICompatibleConfig]`, `[DeepSeekTransConfig]`, `[GeminiConfig]`: optional self-configured translation or metadata providers.
+- `[BilibiliConfig]`: title/description source, templates, copyright/source, partition, dynamic text, and upload flags.
+- `[TenCosConfig]`, `[AnalyticsConfig]`, `[TranslatorConfig]`, `[BaiduTransConfig]`: advanced optional integrations.
+
+## Free Provider Flow
+
+Subtitle translation tries configured providers first, then falls back to free Bing and Google translation. Metadata generation tries configured Gemini/OpenAI-compatible/DeepSeek providers, then falls back to original video metadata or the video ID.
+
+For subtitles, enable `[WhisperConfig].enabled = true` to use the Bcut branch. It tries YouTube captions first, then existing subtitles, then Bcut ASR.
+
+## Build And Check
 
 ```bash
 make build
-make build-dev
-make build-linux-arm64
-make build-all
+make build-web
+make build-api
+make build-prod
+make quick-build
+make test
 ```
 
-If you need to extend the pipeline, start with the implementations under `internal/chain_task/`.
-
-## Validation Commands
+Validation commands:
 
 ```bash
-go test ./...
-go build -o ytb2bili main.go
-curl http://localhost:8096/health
+go test -timeout=60s ./...
+cd web && npx tsc --noEmit
+cd web && npm run lint
+cd web && npm run build:prod
+git diff --check
 ```
 
-## License and Contact
+## Layout
 
-- License: [MIT License](LICENSE)
+- `main.go`: application entrypoint and scheduler startup.
+- `internal/chain_task/`: task-chain handlers.
+- `internal/handler/`: HTTP API handlers.
+- `internal/core/types/app_config.go`: authoritative config structure.
+- `web/`: Next.js admin UI.
+- `docker/`: Docker Compose deployment files.
+
+## License
+
+[MIT License](LICENSE)

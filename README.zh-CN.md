@@ -2,142 +2,63 @@
 
 [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-`ytb2bili` 是一个面向本地视频翻译播放与 YouTube 到 Bilibili 搬运的处理系统，提供 Web 管理后台、任务链编排、字幕处理、AI 文案生成、字幕音频合成、音视频同步播放、B 站上传、字幕上传等完整能力。
+`ytb2bili` 是一个本地运行的 YouTube 到 Bilibili 处理系统。当前项目由 Go 后端、Next.js 管理后台、任务链调度器、yt-dlp 下载、字幕生成、免费字幕翻译、可选 AI 元数据生成和 B 站投稿链路组成。
 
-## 核心特性
+默认流程不需要付费 API。外部大模型、翻译或元数据 API 都是可选项，只有在你自行配置端点和 Key 后才会启用。
 
-- 本地视频翻译播放：支持本地视频生成翻译字幕与配音，并以音视频同步方式播放和校对
-- YouTube 到 B 站全流程处理：下载视频、提取音频、转录字幕、翻译字幕、生成元数据、上传 B 站
-- 可配置任务链：各步骤可以按用户设置启停，前后端对齐执行语义
-- AI 能力集成：支持 AI 翻译、标题、简介、标签生成、字幕音频合成、翻译后配音
-- B 站集成：支持扫码登录、视频投稿、字幕上传、账号状态管理
-- 现代 Web 管理后台：Go 后端加 Next.js 前端，支持任务查看、重跑、手动上传等操作
-  - 深色模式：支持浅色/深色主题切换，偏好本地持久化
-  - 移动端适配：响应式设计，支持手机、平板、桌面端全屏幕尺寸
-  - 自动上传开关：灵活控制上传时机，支持手动与自动上传切换
-  - 任务历史管理：支持删除已完成或失败的任务记录
+## 当前能力
 
-## 5 分钟 Docker 部署
+- 通过 `yt-dlp` 下载视频，支持代理、YouTube cookies 和 Chrome cookies 回退。
+- 通过 YouTube 字幕或 B站必剪分支生成字幕。
+- 默认用免费 Bing 翻译字幕，失败后回退 Google。
+- 可选接入 DeepLX、DeepSeek、OpenAI 兼容 API 或 Gemini。
+- 生成投稿元数据并写入 `meta.json`。
+- B 站扫码登录后上传视频和字幕。
+- Dashboard 支持任务历史记录和硬删除任务记录。
+- 默认关闭自动上传，本地运行时任务会停在准备就绪状态，方便手动确认。
 
-推荐使用 Docker Compose 直接启动服务，默认会启动两个服务：
+## Docker 快速启动
 
-- `mysql`：持久化任务、账号和运行数据
-- `ytb2bili`：Web 管理后台和搬运服务
-
-### 1. 准备环境
-
-- Docker
-- Docker Compose
-
-### 2. 获取部署文件
+Compose 文件在 `docker/` 目录，不在仓库根目录。
 
 ```bash
 git clone https://github.com/ZhantaoLi/ytb2bili.git
-cd ytb2bili
+cd ytb2bili/docker
+cp config.toml.example config.toml
+# 首次启动前，按下方“当前最小配置”修正 config.toml。
 docker compose up -d
+docker compose logs -f ytb2bili
 ```
 
-### 3. 使用最小配置启动
+打开 `http://localhost:8096`。
 
-默认情况下，`[database]` 配置已经和 `docker-compose.yml` 对齐，通常不用改。至少保留下面这段：
-
-```toml
-[server]
-host = "0.0.0.0"
-port = 8096
-static_dir = "./downloads"
-static_path = "/static"
-
-[database]
-type = "mysql"
-host = "mysql"
-port = 3306
-user = "ytb2bili"
-password = "ytb2bili@123"
-dbname = "bili_up"
-sslmode = ""
-timezone = "Asia/Shanghai"
-auto_migrate = true
-table_prefix = ""
-
-[workflow]
-download_dir = "./downloads"
-ytdlp_path = "/usr/local/bin/yt-dlp"
-ffmpeg_path = "/usr/bin/ffmpeg"
-
-# 如果你的网络访问 YouTube 需要代理，再补：
-# proxy_url = "http://127.0.0.1:7890"
-```
-
-### 4. 启动服务
+第一次登录后台前，需要显式配置管理员账号。可加入 `docker-compose.yml` 的 `ytb2bili.environment`，也可以在启动服务的 shell 中导出：
 
 ```bash
-docker compose up -d
-docker compose logs -f
+YTB2BILI_ADMIN_USERNAME=owner
+YTB2BILI_ADMIN_PASSWORD=change-me-to-a-strong-password
+YTB2BILI_ADMIN_EMAIL=owner@example.local
+YTB2BILI_ACCOUNT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 ```
 
-服务正常启动后，打开 `http://localhost:8096`
-
-### 5. 开始使用
-
-1. 进入后台
-2. 用 B 站 App 扫码登录
-3. 新建任务并粘贴视频链接
-4. 等待系统自动下载、处理并上传
-
-常用命令：
-
-```bash
-docker compose ps
-docker compose restart
-docker compose down
-```
-
-如需 Docker 相关补充说明，可查看 [docker/README.md](docker/README.md)。
-
-## 技术架构
-
-项目由三部分组成：
-
-- 处理引擎：Go 后端负责下载、转录、翻译、元数据生成、字幕音频合成、B 站上传、字幕上传等任务链执行
-- 管理后台：Next.js 前端提供任务面板、配置页面、账号管理、手动上传、本地视频翻译播放与同步校对等操作界面
-- 运行支撑：通过 `config.toml`、数据库、Docker 部署文件和文档体系支撑本地开发与生产运行
-
-## 项目结构
-
-仓库中的核心目录：
-
-- `internal/`：后端应用代码，包括任务链、处理逻辑和服务装配
-- `pkg/`：可复用模块，包括 B 站集成、工具实现和数据模型
-- `web/`：Web 管理后台前端代码
-- `docker/`：Docker 构建、运行和部署文件
-- `bin/`：示例脚本、测试辅助和工作流文件
+`YTB2BILI_ACCOUNT_ENCRYPTION_KEY` 必须是 16、24、32 字节，或 base64 解码后是这些长度。未配置时会生成进程级临时密钥，B 站账号加密数据可能无法跨重启稳定解密。
 
 ## 本地开发
 
-### 1. 获取代码
+后端：
 
 ```bash
 git clone https://github.com/ZhantaoLi/ytb2bili.git
 cd ytb2bili
-```
-
-### 2. 准备配置
-
-```bash
 cp config.toml.example config.toml
-```
-
-按需填写数据库、下载目录、代理等配置。默认免费流程不需要 API Key；如需启用外部 API 或本地兼容 API，必须由使用者自行配置。常用配置入口见 [config.toml.example](config.toml.example)。
-
-### 3. 启动后端
-
-```bash
+# 首次启动前，按下方“当前最小配置”修正 config.toml。
 go mod download
 go run main.go
 ```
 
-### 4. 启动前端
+`go run main.go` 会启动 HTTP 服务、数据库迁移、准备阶段调度器和上传调度器。建议本地测试保持 `auto_upload = false`，除非你明确要让就绪视频自动投稿。
+
+前端：
 
 ```bash
 cd web
@@ -145,65 +66,167 @@ npm install
 npm run dev
 ```
 
-### 5. 使用流程
+后端默认是 `http://localhost:8096`，前端开发服务默认是 `http://localhost:3000`。前端 API 默认指向 `http://localhost:8096/api/v1`，所以需要保持 Go 后端运行。
 
-1. 打开 Web 管理后台
-2. 登录 B 站账号
-3. 上传本地视频，生成翻译字幕与配音，并在后台进行音视频同步播放和校对
-4. 安装 Chrome 插件：https://api.github.com/repos/difyz9/ytb2bili_extension/releases/latest
-5. 安装插件后，打开任意 YouTube 视频页面，点击插件图标提交视频链接
-6. 在管理后台查看任务链执行状态与日志
-7. 在需要时重跑步骤、修改文案或手动投稿到 B 站
+## 构建命令
 
-## 核心流程
+当前 Makefile 中真实存在的常用目标：
 
-1. 导入本地视频或提交 YouTube 链接
-2. 下载视频与缩略图
-3. 提取音频
-4. 生成字幕
-5. 翻译字幕
-6. 合成翻译配音并进行音视频同步播放
-7. 生成标题、简介、标签
-8. 上传 B 站视频
-9. 上传 B 站字幕
+- `make build`：构建前端静态资源并打包 Go 二进制。
+- `make build-web`：只构建前端，并复制到 `internal/web/bili-up-web`。
+- `make build-api`：只构建 Go 后端。
+- `make build-prod`：生产构建，开启更小体积的编译参数。
+- `make quick-build`：只快速构建 Go，不刷新前端。
+- `make test`：运行 Go 测试。
+- `make dev`：如果已安装 Air，则以开发模式运行。
+- `make lint`、`make fmt`、`make clean`、`make info`：质量检查和维护命令。
 
-## 配置与构建
+## 当前最小配置
 
-项目使用 `config.toml` 作为主要运行配置。开始前可先执行：
+程序从 `CONFIG_FILE` 指定的文件读取配置；未指定时读取 `config.toml`。当前代码使用顶层字段和命名 TOML 表，历史的 server/workflow 风格字段不是当前运行入口。
 
-```bash
-cp config.toml.example config.toml
+本地 SQLite 示例：
+
+```toml
+listen = ":8096"
+environment = "development"
+debug = true
+fileUpDir = "./data"
+data_path = "./data"
+yt_dlp_path = ""
+auto_upload = false
+primary_ai_service = ""
+
+[database]
+type = "sqlite"
+database = "data/ytb2bili.db"
+timezone = "Asia/Shanghai"
+
+[auth]
+jwt_secret = ""
+jwt_expiration = 24
+session_secret = "change-this-session-secret"
+
+[api_auth]
+app_id = ""
+app_secret = ""
+cookies_decrypt_key = ""
+
+[ProxyConfig]
+use_proxy = false
+proxy_host = "http://127.0.0.1:10809"
+
+[WhisperConfig]
+enabled = true
+language = "en"
+model_path = ""
+threads = 0
 ```
 
-常用配置项包括：
+Docker MySQL 示例：
 
-- `server.port`：服务端口
-- `database.*`：数据库连接信息
-- `workflow.*`：下载目录、代理、ffmpeg、yt-dlp、免费字幕生成、可选本地翻译、上传链路等流程配置
-- `agent.llm.*`：可选 API/本地兼容接口配置；默认不启用，需要使用者自行配置
-- `DeepLXConfig`：可选 DeepLX 字幕翻译；默认关闭，`endpoint` 必须自行配置
-- `OpenAICompatibleConfig`：可选 OpenAI 兼容字幕翻译；默认关闭，`base_url`、`model`、`api_key` 必须自行配置
-- `updater.enabled`：自动更新开关
+```toml
+listen = ":8096"
+environment = "production"
+debug = false
+fileUpDir = "/app/downloads"
+data_path = "/app/data"
+yt_dlp_path = ""
+auto_upload = false
 
-常用构建命令：
-
-```bash
-make build
-make build-dev
-make build-linux-arm64
-make build-all
+[database]
+type = "mysql"
+host = "mysql"
+port = 3306
+username = "ytb2bili"
+password = "ytb2bili@123"
+database = "bili_up"
+timezone = "Asia/Shanghai"
 ```
 
-如果你要扩展流程，优先查看 `internal/chain_task/` 下已有的处理步骤实现。
+Docker 环境如需持久化 cookies、账号相关运行数据，建议额外挂载 `./data:/app/data`。
+
+## 可配置项
+
+- `listen`：后端监听地址，例如 `:8096`。
+- `environment`：运行环境标识，例如 `development` 或 `production`。
+- `debug`：控制后端日志详细程度。
+- `fileUpDir`：视频、音频、字幕、封面等任务文件根目录。
+- `data_path`：运行数据目录，包含上传的 YouTube cookies 等。
+- `yt_dlp_path`：可选的 yt-dlp 安装目录。留空会查找常见路径和 `PATH`。
+- `auto_upload`：为 `false` 时任务停在 `200` 就绪态，需要手动上传；为 `true` 时上传调度器会自动投稿。
+- `primary_ai_service`：可选 AI 服务选择器，留空则走自动回退逻辑。
+- `[database]`：数据库连接。支持 `sqlite`、`mysql`、`postgres`、`postgresql`，字段包括 `type`、`host`、`port`、`username`、`password`、`database`、`ssl_mode`、`timezone`。
+- `[auth]`：后台 JWT 和 session 配置。
+- `[api_auth]`：可选的签名 API 认证和 cookies 解密配置。
+- `[ProxyConfig]`：代理开关和代理地址，供 yt-dlp 和部分 HTTP 客户端使用。
+- `[WhisperConfig]`：历史命名仍保留，但 `enabled = true` 实际选择 B站必剪字幕分支；Mimo ASR 不再使用。
+- `[DeepLXConfig]`：可选字幕翻译，需自行配置完整 `/translate` 端点。
+- `[OpenAICompatibleConfig]`：可选 OpenAI 兼容接口，可用于字幕翻译和元数据生成，需自行配置 `base_url`、`model`、`api_key`。
+- `[DeepSeekTransConfig]`：可选 DeepSeek 翻译和元数据生成配置。
+- `[GeminiConfig]`：可选 Gemini 元数据生成，需设置 `enabled = true` 和 `use_for_metadata = true`。
+- `[BilibiliConfig]`：B 站投稿元信息配置，包括版权、来源、标题/简介来源、自定义模板、分区、动态文本、评论和打赏开关。
+- `[TenCosConfig]`：可选腾讯云 COS 存储配置。
+- `[AnalyticsConfig]`：可选数据分析客户端配置。
+- `[TranslatorConfig]`、`[BaiduTransConfig]`：高级翻译框架配置，默认任务链不依赖它们。
+
+## 免费与可选 API 流程
+
+字幕翻译选择顺序：
+
+1. 已启用且配置完整的 DeepLX。
+2. 已启用且配置完整的 OpenAI 兼容接口。
+3. 已启用且配置完整的 DeepSeek。
+4. 免费 Bing 翻译。
+5. 免费 Google 回退。
+
+元数据生成选择顺序：
+
+1. 已启用并用于元数据的 Gemini。
+2. 已启用的 OpenAI 兼容接口。
+3. 已启用的 DeepSeek。
+4. 免费回退：使用原视频标题/简介，缺失时使用视频 ID。
+
+字幕生成分支：
+
+1. `[WhisperConfig].enabled = true` 时，使用 B站必剪分支。该分支会先尝试 YouTube 字幕，再复用本地字幕，最后调用 B站必剪 ASR。
+2. 未启用该分支时，旧的 `GenerateSubtitles` 步骤依赖数据库中已有字幕 JSON。
+
+## 使用流程
+
+1. 准备 `config.toml`，至少配置 `fileUpDir`、数据库、可选代理和可选字幕分支。
+2. 启动后端；如需改前端，另外启动 `web` 开发服务。
+3. 用环境变量中配置的管理员账号登录。
+4. 扫码绑定 B 站账号。
+5. 提交 YouTube URL 或视频 ID。
+6. 在 Dashboard 查看任务步骤、重试失败步骤或删除历史任务。
+7. 本地建议手动上传；确认稳定后再考虑开启 `auto_upload`。
+
+YouTube 要求登录验证时，可在 UI 上传 cookies，或把 `cookies.txt` 放到 `config.toml` 同目录。下载器还会尝试读取 Chrome cookies 作为回退。
 
 ## 验证命令
 
 ```bash
-go test ./...
-go build -o ytb2bili main.go
-curl http://localhost:8096/health
+go test -timeout=60s ./...
+cd web && npx tsc --noEmit
+cd web && npm run lint
+cd web && npm run build:prod
+git diff --check
 ```
 
-## 许可证与联系方式
+纯文档改动通常只需要文本检查和 `git diff --check`；涉及代码时再跑完整验证。
 
-- 许可证：[MIT License](LICENSE)
+## 项目结构
+
+- `main.go`：应用入口，负责依赖装配、调度器、路由和嵌入式前端服务。
+- `internal/chain_task/`：准备阶段和上传阶段任务链。
+- `internal/handler/`：HTTP API 与后台路由。
+- `internal/core/types/app_config.go`：当前运行配置结构的权威来源。
+- `pkg/`：B 站账号、认证、字幕、翻译、工具等可复用模块。
+- `web/`：Next.js 管理后台。
+- `internal/web/bili-up-web`：嵌入到 Go 服务中的前端静态产物。
+- `docker/`：Docker Compose 和容器部署文件。
+
+## 许可证
+
+[MIT License](LICENSE)
