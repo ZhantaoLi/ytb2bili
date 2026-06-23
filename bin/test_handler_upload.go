@@ -1,3 +1,6 @@
+//go:build demo
+// +build demo
+
 package main
 
 import (
@@ -11,14 +14,13 @@ import (
 	"github.com/ZhantaoLi/ytb2bili/internal/core"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 	"github.com/ZhantaoLi/ytb2bili/pkg/store"
 	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
 	"go.uber.org/zap"
-	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 )
 
 //  ./bin/test_handler_upload -video ./data/001.mp4 -id fT6kGrHtf9k -login login_info.json
-
 
 func main() {
 	// 定义命令行参数
@@ -101,11 +103,11 @@ func main() {
 		if err != nil {
 			logger.Infof("未找到视频记录 %s，正在创建临时记录...", *videoID)
 			newVideo := &model.SavedVideo{
-				VideoID:       *videoID,
-				Title:         fmt.Sprintf("测试视频 %s", *videoID),
-				Description:   "这是一个用于测试 UploadToBilibili Handler 的视频描述。\n包含多行文本。\n测试结束。",
-				Status:        "001",
-				URL:           "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Dummy
+				VideoID:     *videoID,
+				Title:       fmt.Sprintf("测试视频 %s", *videoID),
+				Description: "这是一个用于测试 UploadToBilibili Handler 的视频描述。\n包含多行文本。\n测试结束。",
+				Status:      "001",
+				URL:         "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Dummy
 			}
 			if err := savedVideoService.CreateVideo(newVideo); err != nil {
 				logger.Errorf("❌ 创建临时视频记录失败: %v", err)

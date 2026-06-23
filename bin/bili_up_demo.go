@@ -1,3 +1,6 @@
+//go:build demo
+// +build demo
+
 package main
 
 import (
@@ -7,8 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/ZhantaoLi/ytb2bili/internal/storage"
+	"github.com/difyz9/bilibili-go-sdk/bilibili"
 )
 
 func main() {
