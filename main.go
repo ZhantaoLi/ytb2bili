@@ -34,6 +34,19 @@ import (
 type AppLifecycle struct {
 }
 
+func runServerAsync(run func() error, logger *zap.SugaredLogger) <-chan error {
+	errCh := make(chan error, 1)
+	go func() {
+		if err := run(); err != nil {
+			if logger != nil {
+				logger.Errorf("HTTP server stopped with error: %v", err)
+			}
+			errCh <- err
+		}
+	}()
+	return errCh
+}
+
 // OnStart 应用程序启动时执行
 func (l *AppLifecycle) OnStart(context.Context) error {
 	log.Println("AppLifecycle OnStart")
@@ -59,6 +72,8 @@ func main() {
 		log.Fatal(err)
 	}
 	config.Path = configFile
+
+	var serverErrCh <-chan error
 
 	app := fx.New(
 		// 初始化配置应用配置
@@ -273,13 +288,8 @@ func main() {
 			logger.Info("✓ Static file server configured")
 		}),
 
-		fx.Invoke(func(s *core.AppServer, db *gorm.DB) {
-			go func() {
-				err := s.Run()
-				if err != nil {
-					os.Exit(0)
-				}
-			}()
+		fx.Invoke(func(s *core.AppServer, db *gorm.DB, logger *zap.SugaredLogger) {
+			serverErrCh = runServerAsync(s.Run, logger)
 		}),
 		// 注册生命周期回调函数
 		fx.Invoke(func(lifecycle fx.Lifecycle, lc *AppLifecycle) {
@@ -303,10 +313,14 @@ func main() {
 
 	}()
 
-	// 监听退出信号
+	// 监听退出信号或 HTTP 服务启动失败
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+	case err := <-serverErrCh:
+		log.Fatalf("HTTP server failed: %v", err)
+	}
 
 	log.Println("🛑 Shutting down gracefully...")
 

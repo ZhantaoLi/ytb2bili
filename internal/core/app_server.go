@@ -1,14 +1,15 @@
 package core
 
 import (
-	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
-	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
+	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -54,12 +55,17 @@ func (s *AppServer) setupMiddleware() {
 		method := c.Request.Method
 		origin := c.Request.Header.Get("Origin")
 		if origin != "" {
-			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, UPDATE")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Accept, Cache-Control, X-Requested-With, X-App-Id, X-Timestamp, X-Nonce, X-Sign")
-			c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type")
-			c.Header("Access-Control-Max-Age", "172800")
-			c.Header("Access-Control-Allow-Credentials", "true")
+			if isAllowedCredentialOrigin(origin) {
+				c.Header("Access-Control-Allow-Origin", origin)
+				c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+				c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Accept, Cache-Control, X-Requested-With, X-App-Id, X-Timestamp, X-Nonce, X-Sign")
+				c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type")
+				c.Header("Access-Control-Max-Age", "172800")
+				c.Header("Access-Control-Allow-Credentials", "true")
+			} else if method == http.MethodOptions {
+				c.AbortWithStatus(http.StatusForbidden)
+				return
+			}
 		}
 
 		if method == http.MethodOptions {
@@ -105,6 +111,23 @@ func (s *AppServer) setupMiddleware() {
 		}()
 		c.Next()
 	})
+}
+
+func isAllowedCredentialOrigin(origin string) bool {
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return false
+	}
+
+	switch parsed.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
 }
 
 // Run 启动服务器

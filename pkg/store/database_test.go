@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func TestNewDatabaseSupportsSQLite(t *testing.T) {
@@ -30,5 +31,14 @@ func TestNewDatabaseSupportsSQLite(t *testing.T) {
 	}
 	if err := sqlDB.Close(); err != nil {
 		t.Fatalf("failed to close SQLite database: %v", err)
+	}
+}
+
+func TestGormLogLevelAvoidsSQLSpamInDebugMode(t *testing.T) {
+	if got := gormLogLevel(true); got != gormlogger.Warn {
+		t.Fatalf("gormLogLevel(true) = %v, want %v", got, gormlogger.Warn)
+	}
+	if got := gormLogLevel(false); got != gormlogger.Silent {
+		t.Fatalf("gormLogLevel(false) = %v, want %v", got, gormlogger.Silent)
 	}
 }

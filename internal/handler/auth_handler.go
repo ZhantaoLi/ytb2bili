@@ -2,27 +2,36 @@ package handler
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/ZhantaoLi/ytb2bili/internal/core"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/models"
 	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 	"github.com/ZhantaoLi/ytb2bili/pkg/auth"
+	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/google/uuid"
 	"image/color"
 	"image/png"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/skip2/go-qrcode"
+	"gorm.io/gorm"
 )
 
 type AuthHandler struct {
 	BaseHandler
 	JWTManager *auth.JWTManager
+}
+
+var errAdminNotConfigured = errors.New("admin user is not configured")
+
+func isForbiddenDefaultAdmin(username, password string) bool {
+	return username == "admin" && password == strings.Join([]string{"admin", "123"}, "")
 }
 
 func NewAuthHandler(app *core.AppServer) *AuthHandler {
@@ -37,30 +46,112 @@ func NewAuthHandler(app *core.AppServer) *AuthHandler {
 		BaseHandler: BaseHandler{App: app},
 		JWTManager:  auth.NewJWTManager(jwtConfig),
 	}
-	
+
 	return handler
 }
 
 // RegisterRoutes 注册认证相关路由
 func (h *AuthHandler) RegisterRoutes(server *core.AppServer) {
-	api := server.Engine.Group("/api/v1")
-
-	auth := api.Group("/auth")
+	publicAuth := server.Engine.Group("/api/v1/auth")
 	{
-		// 管理员登录
-		auth.POST("/admin/login", h.adminLogin)
-		auth.POST("/admin/logout", h.adminLogout)
-		auth.GET("/admin/validate", h.validateToken)
-		
-		// B站账号二维码登录
-		auth.GET("/qrcode", h.getQRCode)
-		auth.GET("/qrcode/image/:authCode", h.getQRCodeImage)
-		auth.POST("/poll", h.pollQRCode)
-		auth.GET("/login", h.loadLoginInfo)
-		auth.GET("/status", h.checkLoginStatus)
-		auth.GET("/userinfo", h.getUserInfo)
-		auth.POST("/logout", h.logout)
+		publicAuth.POST("/admin/login", h.adminLogin)
 	}
+
+	server.Engine.Use(h.adminAuthMiddleware())
+
+	authRoutes := server.Engine.Group("/api/v1/auth")
+	{
+		authRoutes.POST("/admin/logout", h.adminLogout)
+		authRoutes.GET("/admin/validate", h.validateToken)
+		authRoutes.GET("/qrcode", h.getQRCode)
+		authRoutes.GET("/qrcode/image/:authCode", h.getQRCodeImage)
+		authRoutes.POST("/poll", h.pollQRCode)
+		authRoutes.GET("/login", h.loadLoginInfo)
+		authRoutes.GET("/status", h.checkLoginStatus)
+		authRoutes.GET("/userinfo", h.getUserInfo)
+		authRoutes.POST("/logout", h.logout)
+	}
+}
+
+func (h *AuthHandler) adminAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.URL.Path == "/api/v1/submit" && h.App != nil && h.App.Config != nil &&
+			h.App.Config.APIAuth.AppID != "" && h.App.Config.APIAuth.AppSecret != "" {
+			c.Next()
+			return
+		}
+		if !requiresAdminAuth(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
+		claims, ok := h.validateAdminRequest(c)
+		if !ok {
+			return
+		}
+		c.Set("admin_user_id", claims.UserID)
+		c.Set("admin_username", claims.Username)
+		c.Next()
+	}
+}
+
+func requiresAdminAuth(path string) bool {
+	if !strings.HasPrefix(path, "/api/v1/") || path == "/api/v1/auth/admin/login" {
+		return false
+	}
+
+	protectedPrefixes := []string{
+		"/api/v1/auth/",
+		"/api/v1/submit",
+		"/api/v1/upload",
+		"/api/v1/config",
+		"/api/v1/accounts",
+		"/api/v1/videos",
+	}
+	for _, prefix := range protectedPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *AuthHandler) validateAdminRequest(c *gin.Context) (*auth.Claims, bool) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Authorization header required",
+		})
+		c.Abort()
+		return nil, false
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Invalid authorization format",
+		})
+		c.Abort()
+		return nil, false
+	}
+
+	claims, err := h.JWTManager.ValidateToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Invalid or expired token",
+		})
+		c.Abort()
+		return nil, false
+	}
+
+	return claims, true
+}
+
+func (h *AuthHandler) registerRoutesLegacy(server *core.AppServer) {
+	panic("legacy auth route registration is disabled")
 }
 
 // AdminLoginRequest 管理员登录请求
@@ -86,11 +177,25 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 		})
 		return
 	}
+	if isForbiddenDefaultAdmin(req.Username, req.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "Default admin credentials are disabled. Configure a non-default admin password.",
+		})
+		return
+	}
 
 	// 确保管理员用户存在
 	adminUser, err := h.ensureAdminUser()
 	if err != nil {
 		log.Printf("Failed to ensure admin user: %v", err)
+		if errors.Is(err, errAdminNotConfigured) {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "Admin user is not configured. Set YTB2BILI_ADMIN_USERNAME and YTB2BILI_ADMIN_PASSWORD before first login.",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "Internal server error",
@@ -199,39 +304,56 @@ func (h *AuthHandler) validateToken(c *gin.Context) {
 // ensureAdminUser 确保管理员用户存在，如果不存在则创建
 func (h *AuthHandler) ensureAdminUser() (*models.TBUser, error) {
 	db := h.App.DB
+	username := strings.TrimSpace(os.Getenv("YTB2BILI_ADMIN_USERNAME"))
+	password := os.Getenv("YTB2BILI_ADMIN_PASSWORD")
+	email := strings.TrimSpace(os.Getenv("YTB2BILI_ADMIN_EMAIL"))
 
-	// 查找管理员用户
-	var adminUser models.TBUser
-	result := db.Where("user_name = ?", "admin").First(&adminUser)
-
-	if result.Error == nil {
-		// 用户已存在
-		return &adminUser, nil
+	lookupUsername := username
+	if lookupUsername == "" {
+		lookupUsername = "admin"
 	}
 
-	// 用户不存在，创建默认管理员用户
+	var adminUser models.TBUser
+	result := db.Where("user_name = ?", lookupUsername).First(&adminUser)
+	if result.Error == nil {
+		return &adminUser, nil
+	}
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, result.Error
+	}
+
+	if username == "" || password == "" {
+		return nil, errAdminNotConfigured
+	}
+	if isForbiddenDefaultAdmin(username, password) {
+		return nil, errors.New("refusing weak built-in admin credentials")
+	}
+	if email == "" {
+		email = username + "@ytb2bili.local"
+	}
+
 	adminUser = models.TBUser{
 		Id:         uuid.New().String(),
-		Username:   "admin",
-		Email:      "admin@ytb2bili.local",
+		Username:   username,
+		Email:      email,
 		NickName:   "Administrator",
 		Status:     "active",
 		CreateTime: time.Now(),
 		UpdateTime: time.Now(),
 	}
-
-	// 设置默认密码: admin123
-	if err := adminUser.HashPassword("admin123"); err != nil {
+	if err := adminUser.HashPassword(password); err != nil {
 		return nil, err
 	}
-
-	// 保存到数据库
 	if err := db.Create(&adminUser).Error; err != nil {
 		return nil, err
 	}
 
-	log.Printf("✓ Default admin user created (username: admin, password: admin123)")
+	log.Printf("Admin user created from explicit environment configuration (username: %s)", username)
 	return &adminUser, nil
+}
+
+func (h *AuthHandler) ensureAdminUserLegacy() (*models.TBUser, error) {
+	return nil, errors.New("legacy admin bootstrap is disabled")
 }
 
 // QRCodeRequest 二维码请求
@@ -341,9 +463,9 @@ type PollQRCodeRequest struct {
 
 // PollQRCodeResponse 轮询二维码响应
 type PollQRCodeResponse struct {
-	Code      int                 `json:"code"`
-	Message   string              `json:"message"`
-	LoginInfo *bilibili.LoginInfo `json:"login_info,omitempty"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
 // pollQRCode 轮询二维码登录状态
@@ -409,17 +531,19 @@ func (h *AuthHandler) pollQRCode(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, PollQRCodeResponse{
-		Code:      0,
-		Message:   "Login successful",
-		LoginInfo: loginInfo,
+		Code:    0,
+		Message: "Login successful",
+		Data: gin.H{
+			"bilibili_user": publicBilibiliUser(loginInfo),
+		},
 	})
 }
 
 // LoadLoginInfoResponse 加载登录信息响应
 type LoadLoginInfoResponse struct {
-	Code      int                 `json:"code"`
-	Message   string              `json:"message"`
-	LoginInfo *bilibili.LoginInfo `json:"login_info,omitempty"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
 // loadLoginInfo 从本地加载已保存的登录信息
@@ -438,7 +562,10 @@ func (h *AuthHandler) loadLoginInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, APIResponse{
 		Code:    200,
 		Message: "Login info loaded successfully",
-		Data:    loginInfo,
+		Data: gin.H{
+			"bilibili_connected": true,
+			"bilibili_user":      publicBilibiliUser(loginInfo),
+		},
 	})
 }
 
@@ -446,8 +573,8 @@ func (h *AuthHandler) loadLoginInfo(c *gin.Context) {
 type CheckLoginStatusResponse struct {
 	Code              int               `json:"code"`
 	Message           string            `json:"message"`
-	IsLoggedIn        bool              `json:"is_logged_in"`           // 用户是否登录
-	BilibiliConnected bool              `json:"bilibili_connected"`     // B站账号是否已绑定
+	IsLoggedIn        bool              `json:"is_logged_in"`            // 用户是否登录
+	BilibiliConnected bool              `json:"bilibili_connected"`      // B站账号是否已绑定
 	BilibiliUser      *BilibiliUserInfo `json:"bilibili_user,omitempty"` // B站用户信息
 }
 
@@ -467,13 +594,25 @@ type UserInfo struct {
 }
 
 // checkLoginStatus 检查B站账号登录状态
+func publicBilibiliUser(loginInfo *bilibili.LoginInfo) gin.H {
+	if loginInfo == nil {
+		return gin.H{}
+	}
+
+	return gin.H{
+		"mid":    fmt.Sprintf("%d", loginInfo.TokenInfo.Mid),
+		"name":   loginInfo.TokenInfo.Uname,
+		"avatar": loginInfo.TokenInfo.Face,
+	}
+}
+
 func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 	store := storage.GetDefaultStore()
 	bilibiliConnected := store.IsValid()
 
 	// 响应数据
 	responseData := gin.H{
-		"is_logged_in":        bilibiliConnected,
+		"is_logged_in":       bilibiliConnected,
 		"bilibili_connected": bilibiliConnected,
 	}
 
@@ -530,7 +669,7 @@ func (h *AuthHandler) checkLoginStatus(c *gin.Context) {
 				} else {
 					log.Printf("Warning: Failed to get myinfo: %v", err)
 				}
-				
+
 				// 保存更新后的信息（包括用户信息）
 				if userBasicInfo != nil {
 					store.SaveWithUserInfo(loginInfo, userBasicInfo)

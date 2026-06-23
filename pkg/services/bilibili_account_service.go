@@ -7,6 +7,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
@@ -21,11 +24,18 @@ type BilibiliAccountService struct {
 	logger        *zap.SugaredLogger
 }
 
+const accountEncryptionKeyEnv = "YTB2BILI_ACCOUNT_ENCRYPTION_KEY"
+
+var (
+	processAccountEncryptionKey     []byte
+	processAccountEncryptionKeyOnce sync.Once
+)
+
 // NewBilibiliAccountService 创建B站账号服务实例
 func NewBilibiliAccountService(db *gorm.DB, logger *zap.SugaredLogger) *BilibiliAccountService {
 	// 生成或加载加密密钥（实际应从配置或环境变量中获取）
 	// 必须是16、24或32字节（对应AES-128、AES-192、AES-256）
-	key := []byte("a463b25e5f694b8f85bd805f272723e8") // 32字节密钥用于AES-256
+	key := resolveAccountEncryptionKey(logger)
 
 	return &BilibiliAccountService{
 		DB:            db,
@@ -35,6 +45,51 @@ func NewBilibiliAccountService(db *gorm.DB, logger *zap.SugaredLogger) *Bilibili
 }
 
 // encrypt 加密敏感数据
+func resolveAccountEncryptionKey(logger *zap.SugaredLogger) []byte {
+	if key, ok := parseAESKey(os.Getenv(accountEncryptionKeyEnv)); ok {
+		return key
+	}
+
+	if strings.TrimSpace(os.Getenv(accountEncryptionKeyEnv)) != "" && logger != nil {
+		logger.Warnf("%s must be 16, 24, or 32 bytes, or base64 encoding of that length; falling back to a process-local key", accountEncryptionKeyEnv)
+	}
+
+	processAccountEncryptionKeyOnce.Do(func() {
+		key := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, key); err != nil {
+			panic(fmt.Sprintf("generate account encryption key: %v", err))
+		}
+		processAccountEncryptionKey = key
+		if logger != nil {
+			logger.Warnf("%s is not configured; generated a process-local key. Set it to persist encrypted account rows across restarts.", accountEncryptionKeyEnv)
+		}
+	})
+
+	return processAccountEncryptionKey
+}
+
+func parseAESKey(raw string) ([]byte, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, false
+	}
+
+	if isValidAESKeyLength(len(raw)) {
+		return []byte(raw), true
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err == nil && isValidAESKeyLength(len(decoded)) {
+		return decoded, true
+	}
+
+	return nil, false
+}
+
+func isValidAESKeyLength(length int) bool {
+	return length == 16 || length == 24 || length == 32
+}
+
 func (s *BilibiliAccountService) encrypt(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil

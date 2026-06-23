@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"time"
 
@@ -9,9 +11,9 @@ import (
 
 // JWTConfig JWT 配置
 type JWTConfig struct {
-	SecretKey     string
-	ExpiryTime    time.Duration
-	RefreshTime   time.Duration
+	SecretKey   string
+	ExpiryTime  time.Duration
+	RefreshTime time.Duration
 }
 
 // Claims JWT 声明
@@ -29,8 +31,11 @@ type JWTManager struct {
 
 // NewJWTManager 创建 JWT 管理器
 func NewJWTManager(config *JWTConfig) *JWTManager {
+	if config == nil {
+		config = &JWTConfig{}
+	}
 	if config.SecretKey == "" {
-		config.SecretKey = "ytb2bili-default-secret-key-change-in-production"
+		config.SecretKey = generateProcessLocalSecret()
 	}
 	if config.ExpiryTime == 0 {
 		config.ExpiryTime = 7 * 24 * time.Hour // 默认 7 天
@@ -38,10 +43,18 @@ func NewJWTManager(config *JWTConfig) *JWTManager {
 	if config.RefreshTime == 0 {
 		config.RefreshTime = 30 * 24 * time.Hour // 默认 30 天
 	}
-	
+
 	return &JWTManager{
 		config: config,
 	}
+}
+
+func generateProcessLocalSecret() string {
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return base64.StdEncoding.EncodeToString([]byte(time.Now().Format(time.RFC3339Nano)))
+	}
+	return base64.StdEncoding.EncodeToString(secret)
 }
 
 // GenerateToken 生成访问 token

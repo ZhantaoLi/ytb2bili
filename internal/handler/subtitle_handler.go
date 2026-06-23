@@ -9,7 +9,10 @@ import (
 	"github.com/ZhantaoLi/ytb2bili/pkg/utils"
 	"net/http"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -235,8 +238,11 @@ func (h *SubtitleHandler) RegisterRoutesWithAuth(server *core.AppServer, authMid
 func (h *SubtitleHandler) saveCookiesToFile(cookiesStr string) error {
 	// 创建 cookies 目录
 	cookiesDir := filepath.Join(h.App.Config.DataPath, "cookies")
-	if err := os.MkdirAll(cookiesDir, 0755); err != nil {
+	if err := os.MkdirAll(cookiesDir, 0700); err != nil {
 		return fmt.Errorf("创建 cookies 目录失败: %w", err)
+	}
+	if err := secureCookiesPath(cookiesDir, true); err != nil {
+		return fmt.Errorf("收紧 cookies 目录权限失败: %w", err)
 	}
 
 	// 生成文件名（使用时间戳）
@@ -251,8 +257,11 @@ func (h *SubtitleHandler) saveCookiesToFile(cookiesStr string) error {
 	}
 
 	// 写入文件
-	if err := os.WriteFile(filepath, []byte(netscapeContent), 0644); err != nil {
+	if err := os.WriteFile(filepath, []byte(netscapeContent), 0600); err != nil {
 		return fmt.Errorf("写入文件失败: %w", err)
+	}
+	if err := secureCookiesPath(filepath, false); err != nil {
+		return fmt.Errorf("收紧 cookies 文件权限失败: %w", err)
 	}
 
 	fmt.Printf("📁 Cookies 文件已保存: %s\n", filepath)
@@ -260,6 +269,43 @@ func (h *SubtitleHandler) saveCookiesToFile(cookiesStr string) error {
 	// 清理旧文件（保留最近 10 个）
 	h.cleanupOldCookiesFiles(cookiesDir, 10)
 
+	return nil
+}
+
+func secureCookiesPath(path string, isDir bool) error {
+	if runtime.GOOS != "windows" {
+		if isDir {
+			return os.Chmod(path, 0700)
+		}
+		return os.Chmod(path, 0600)
+	}
+
+	currentUser, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	currentPrincipal := currentUser.Username
+	if strings.TrimSpace(currentUser.Uid) != "" {
+		currentPrincipal = "*" + currentUser.Uid
+	}
+
+	permission := "F"
+	if isDir {
+		permission = "(OI)(CI)F"
+	}
+
+	args := []string{
+		path,
+		"/inheritance:r",
+		"/grant:r", currentPrincipal + ":" + permission,
+		"/grant:r", "*S-1-5-18:" + permission,
+		"/grant:r", "*S-1-5-32-544:" + permission,
+	}
+	output, err := exec.Command("icacls", args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("icacls failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
 	return nil
 }
 

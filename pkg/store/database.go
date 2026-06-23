@@ -25,12 +25,8 @@ func NewDatabase(config *types.AppConfig) (*gorm.DB, error) {
 		},
 	}
 
-	// 设置日志级别
-	if config.Debug {
-		gormConfig.Logger = logger.Default.LogMode(logger.Info)
-	} else {
-		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
-	}
+	// debug 模式保留数据库警告/错误，避免调度器轮询 SQL 淹没业务日志。
+	gormConfig.Logger = logger.Default.LogMode(gormLogLevel(config.Debug))
 
 	// 根据数据库类型创建连接
 	var db *gorm.DB
@@ -73,6 +69,13 @@ func NewDatabase(config *types.AppConfig) (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return db, nil
+}
+
+func gormLogLevel(debug bool) logger.LogLevel {
+	if debug {
+		return logger.Warn
+	}
+	return logger.Silent
 }
 
 // AutoMigrate 自动迁移数据库表

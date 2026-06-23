@@ -1,14 +1,16 @@
 package handler
 
 import (
-	"github.com/ZhantaoLi/ytb2bili/internal/core"
-	bilibili2 "github.com/difyz9/bilibili-go-sdk/bilibili"
-	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"encoding/json"
+	"fmt"
+	"github.com/ZhantaoLi/ytb2bili/internal/core"
+	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
+	bilibili2 "github.com/difyz9/bilibili-go-sdk/bilibili"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -192,7 +194,14 @@ func (h *UploadHandler) uploadCover(c *gin.Context) {
 	}
 
 	// 保存上传的文件
-	tempPath := filepath.Join(tempDir, file.Filename)
+	tempPath, err := safeUploadTempPath(tempDir, file.Filename)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Invalid cover filename: " + err.Error(),
+		})
+		return
+	}
 	if err := c.SaveUploadedFile(file, tempPath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -222,6 +231,18 @@ func (h *UploadHandler) uploadCover(c *gin.Context) {
 			"cover_url": coverURL,
 		},
 	})
+}
+
+func safeUploadTempPath(tempDir, filename string) (string, error) {
+	filename = strings.TrimSpace(filename)
+	if filename == "" || filename == "." || filename == ".." {
+		return "", fmt.Errorf("empty filename")
+	}
+	if filepath.IsAbs(filename) || strings.ContainsAny(filename, `/\`) {
+		return "", fmt.Errorf("path separators are not allowed")
+	}
+
+	return filepath.Join(tempDir, filename), nil
 }
 
 // SubmitVideoRequest 提交视频请求
