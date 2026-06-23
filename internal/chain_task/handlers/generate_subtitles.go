@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
@@ -17,6 +19,11 @@ import (
 	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
 	"github.com/ZhantaoLi/ytb2bili/pkg/utils"
+)
+
+const (
+	defaultASRSplitCommandTimeout = 30 * time.Minute
+	defaultASRProbeCommandTimeout = 30 * time.Second
 )
 
 type GenerateSubtitles struct {
@@ -90,8 +97,11 @@ func (t *GenerateSubtitles) Execute(context map[string]interface{}) bool {
 
 	// 2. 检查字幕数据是否存在
 	if isEmptySubtitleJSON(savedVideo.Subtitles) {
-		t.App.Logger.Warn("⚠️  视频没有字幕数据，尝试 MiMo ASR 生成字幕")
-		return t.generateSubtitlesWithMimoASR(context)
+		errMsg := "数据库中没有可用字幕；请使用 B站必剪转录 步骤生成字幕"
+		t.App.Logger.Warn("⚠️  " + errMsg)
+		context["error"] = errMsg
+		context["subtitle_skipped"] = "no_subtitle_source"
+		return false
 	}
 
 	// 3. 解析字幕 JSON 数据
@@ -103,8 +113,11 @@ func (t *GenerateSubtitles) Execute(context map[string]interface{}) bool {
 	}
 
 	if len(subtitles) == 0 {
-		t.App.Logger.Warn("⚠️  字幕数据为空，尝试 MiMo ASR 生成字幕")
-		return t.generateSubtitlesWithMimoASR(context)
+		errMsg := "字幕数据为空；请使用 B站必剪转录 步骤生成字幕"
+		t.App.Logger.Warn("⚠️  " + errMsg)
+		context["error"] = errMsg
+		context["subtitle_skipped"] = "empty_subtitle_source"
+		return false
 	}
 
 	t.App.Logger.Infof("📝 找到 %d 条字幕", len(subtitles))
@@ -177,87 +190,6 @@ func isEmptySubtitleJSON(subtitleJSON string) bool {
 	return trimmed == "" || trimmed == "null" || trimmed == "[]"
 }
 
-func (t *GenerateSubtitles) generateSubtitlesWithMimoASR(context map[string]interface{}) bool {
-	config := t.App.Config.MimoASRConfig
-	if config == nil || !config.Enabled || strings.TrimSpace(config.APIKey) == "" {
-		t.App.Logger.Warn("⚠️  MiMo ASR 未启用或未配置 API Key，跳过字幕生成")
-		context["subtitle_skipped"] = "mimo_asr_not_configured"
-		return true
-	}
-
-	videoPath, err := t.findSourceVideo()
-	if err != nil {
-		t.App.Logger.Errorf("❌ 查找待识别视频失败: %v", err)
-		context["error"] = err.Error()
-		return false
-	}
-
-	segmentSeconds := config.SegmentSeconds
-	if segmentSeconds <= 0 {
-		segmentSeconds = 90
-	}
-
-	segmentPaths, err := t.splitVideoForASR(videoPath, segmentSeconds)
-	if err != nil {
-		t.App.Logger.Errorf("❌ 切分 ASR 音频失败: %v", err)
-		context["error"] = err.Error()
-		return false
-	}
-
-	language := strings.TrimSpace(config.Language)
-	if language == "" {
-		language = "auto"
-	}
-	client := NewMimoASRClient(MimoASRClientConfig{
-		APIKey:  config.APIKey,
-		BaseURL: config.BaseURL,
-		Model:   config.Model,
-		Timeout: config.Timeout,
-	})
-
-	asrSegments := make([]asrSegment, 0, len(segmentPaths))
-	for i, segmentPath := range segmentPaths {
-		t.App.Logger.Infof("🎙️  MiMo ASR 转写片段 %d/%d: %s", i+1, len(segmentPaths), filepath.Base(segmentPath))
-		text, err := client.TranscribeFile(segmentPath, language)
-		if err != nil {
-			t.App.Logger.Errorf("❌ MiMo ASR 转写失败: %v", err)
-			context["error"] = err.Error()
-			return false
-		}
-		duration := probeAudioDuration(segmentPath)
-		if duration <= 0 {
-			duration = float64(segmentSeconds)
-		}
-		asrSegments = append(asrSegments, asrSegment{
-			Start:    float64(i * segmentSeconds),
-			Duration: duration,
-			Text:     text,
-		})
-	}
-
-	srtContent := buildSRTFromASRSegments(asrSegments)
-	if strings.TrimSpace(srtContent) == "" {
-		errMsg := "MiMo ASR 未返回可写入字幕的文本"
-		t.App.Logger.Error("❌ " + errMsg)
-		context["error"] = errMsg
-		return false
-	}
-
-	srtFilePath, err := t.writeSubtitleFiles(srtContent)
-	if err != nil {
-		t.App.Logger.Errorf("❌ 写入 ASR 字幕文件失败: %v", err)
-		context["error"] = err.Error()
-		return false
-	}
-
-	context["subtitle_file"] = srtFilePath
-	context["subtitle_count"] = len(asrSegments)
-	context["asr_provider"] = "mimo"
-	context["asr_segments"] = len(segmentPaths)
-	t.App.Logger.Infof("✅ MiMo ASR 字幕生成成功: %s", srtFilePath)
-	return true
-}
-
 func (t *GenerateSubtitles) findSourceVideo() (string, error) {
 	candidates := []string{
 		t.StateManager.InputVideoPath,
@@ -292,7 +224,7 @@ func (t *GenerateSubtitles) splitVideoForASR(videoPath string, segmentSeconds in
 	}
 
 	outputPattern := filepath.Join(segmentsDir, "segment_%04d.mp3")
-	cmd := exec.Command(
+	command := []string{
 		"ffmpeg",
 		"-y",
 		"-i", videoPath,
@@ -304,8 +236,8 @@ func (t *GenerateSubtitles) splitVideoForASR(videoPath string, segmentSeconds in
 		"-segment_time", strconv.Itoa(segmentSeconds),
 		"-reset_timestamps", "1",
 		outputPattern,
-	)
-	output, err := cmd.CombinedOutput()
+	}
+	output, err := runASRCommandWithTimeout(command, defaultASRSplitCommandTimeout, nil)
 	if err != nil {
 		return nil, fmt.Errorf("ffmpeg 切分失败: %v, output=%s", err, strings.TrimSpace(string(output)))
 	}
@@ -340,13 +272,13 @@ func (t *GenerateSubtitles) writeSubtitleFiles(srtContent string) (string, error
 }
 
 func probeAudioDuration(audioPath string) float64 {
-	output, err := exec.Command(
+	output, err := runASRCommandWithTimeout([]string{
 		"ffprobe",
 		"-v", "error",
 		"-show_entries", "format=duration",
 		"-of", "default=noprint_wrappers=1:nokey=1",
 		audioPath,
-	).Output()
+	}, defaultASRProbeCommandTimeout, nil)
 	if err != nil {
 		return 0
 	}
@@ -355,6 +287,29 @@ func probeAudioDuration(audioPath string) float64 {
 		return 0
 	}
 	return duration
+}
+
+func runASRCommandWithTimeout(command []string, timeout time.Duration, env []string) ([]byte, error) {
+	if len(command) == 0 {
+		return nil, fmt.Errorf("empty command")
+	}
+	if timeout <= 0 {
+		timeout = defaultASRSplitCommandTimeout
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+
+	output, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, fmt.Errorf("command timed out after %s", timeout)
+	}
+	return output, err
 }
 
 // truncateString 截断字符串，避免日志过长

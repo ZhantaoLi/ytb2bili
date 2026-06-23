@@ -3,6 +3,7 @@ package types
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -17,6 +18,14 @@ func TestNewDefaultConfigLeavesAPIAuthUnconfigured(t *testing.T) {
 	}
 	if config.APIAuth.CookiesDecryptKey != "" {
 		t.Fatalf("default cookies decrypt key = %q, want empty", config.APIAuth.CookiesDecryptKey)
+	}
+}
+
+func TestNewDefaultConfigLeavesJWTSecretUnconfigured(t *testing.T) {
+	config := NewDefaultConfig()
+
+	if config.Auth.JWTSecret != "" {
+		t.Fatalf("default JWT secret = %q, want empty so JWTManager can generate a process-local secret", config.Auth.JWTSecret)
 	}
 }
 
@@ -95,21 +104,12 @@ timeout = 15
 	}
 }
 
-func TestLoadConfigUsesSelfConfiguredMimoASR(t *testing.T) {
+func TestLoadConfigPreservesDefaultsWhenFieldsAreOmitted(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.toml")
 	configText := `
-listen = ":8096"
-environment = "development"
-debug = false
-
-[MimoASRConfig]
+[DeepLXConfig]
 enabled = true
-api_key = "test-key"
-base_url = "https://example.test/v1"
-model = "mimo-v2.5-asr"
-language = "ko"
-segment_seconds = 120
-timeout = 180
+endpoint = "https://example.test/translate"
 `
 	if err := os.WriteFile(configPath, []byte(configText), 0644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
@@ -120,28 +120,37 @@ timeout = 180
 		t.Fatalf("LoadConfig() returned error: %v", err)
 	}
 
-	if config.MimoASRConfig == nil {
-		t.Fatal("MimoASRConfig is nil")
+	if config.Listen != ":8096" {
+		t.Fatalf("Listen = %q, want default :8096", config.Listen)
 	}
-	if !config.MimoASRConfig.Enabled {
-		t.Fatal("MimoASRConfig.Enabled = false, want true")
+	if config.Environment != "development" {
+		t.Fatalf("Environment = %q, want development", config.Environment)
 	}
-	if config.MimoASRConfig.APIKey != "test-key" {
-		t.Fatalf("MimoASRConfig.APIKey = %q, want test-key", config.MimoASRConfig.APIKey)
+	if config.DataPath != "./data" {
+		t.Fatalf("DataPath = %q, want ./data", config.DataPath)
 	}
-	if config.MimoASRConfig.BaseURL != "https://example.test/v1" {
-		t.Fatalf("MimoASRConfig.BaseURL = %q", config.MimoASRConfig.BaseURL)
+	if config.Database.Type != "postgres" {
+		t.Fatalf("Database.Type = %q, want postgres", config.Database.Type)
 	}
-	if config.MimoASRConfig.Model != "mimo-v2.5-asr" {
-		t.Fatalf("MimoASRConfig.Model = %q", config.MimoASRConfig.Model)
+}
+
+func TestSaveConfigWritesOwnerOnlyPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows file permissions do not map cleanly to Unix mode bits")
 	}
-	if config.MimoASRConfig.Language != "ko" {
-		t.Fatalf("MimoASRConfig.Language = %q, want ko", config.MimoASRConfig.Language)
+
+	config := NewDefaultConfig()
+	config.Path = filepath.Join(t.TempDir(), "config.toml")
+
+	if err := SaveConfig(config); err != nil {
+		t.Fatalf("SaveConfig() error = %v", err)
 	}
-	if config.MimoASRConfig.SegmentSeconds != 120 {
-		t.Fatalf("MimoASRConfig.SegmentSeconds = %d, want 120", config.MimoASRConfig.SegmentSeconds)
+
+	info, err := os.Stat(config.Path)
+	if err != nil {
+		t.Fatalf("stat saved config: %v", err)
 	}
-	if config.MimoASRConfig.Timeout != 180 {
-		t.Fatalf("MimoASRConfig.Timeout = %d, want 180", config.MimoASRConfig.Timeout)
+	if got, want := info.Mode().Perm(), os.FileMode(0600); got != want {
+		t.Fatalf("saved config permissions = %o, want %o", got, want)
 	}
 }

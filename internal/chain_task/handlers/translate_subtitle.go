@@ -59,14 +59,14 @@ func (t *TranslateSubtitle) getCurrentAPIKey() (string, error) {
 }
 
 func (t *TranslateSubtitle) getTranslationProvider() (string, error) {
-	if cfg := t.App.Config.DeepLXConfig; cfg != nil && cfg.Enabled {
+	if cfg := t.App.Config.DeepLXConfig; cfg != nil && cfg.Enabled && strings.TrimSpace(cfg.Endpoint) != "" {
 		if strings.TrimSpace(cfg.Endpoint) == "" {
 			return "", fmt.Errorf("DeepLX endpoint 未配置")
 		}
 		return "deeplx", nil
 	}
 
-	if cfg := t.App.Config.OpenAICompatibleConfig; cfg != nil && cfg.Enabled {
+	if cfg := t.App.Config.OpenAICompatibleConfig; cfg != nil && cfg.Enabled && strings.TrimSpace(cfg.BaseURL) != "" && strings.TrimSpace(cfg.APIKey) != "" && strings.TrimSpace(cfg.Model) != "" {
 		if strings.TrimSpace(cfg.BaseURL) == "" || strings.TrimSpace(cfg.APIKey) == "" || strings.TrimSpace(cfg.Model) == "" {
 			return "", fmt.Errorf("OpenAI 兼容翻译 API 未完整配置")
 		}
@@ -76,7 +76,7 @@ func (t *TranslateSubtitle) getTranslationProvider() (string, error) {
 	if _, err := t.getCurrentAPIKey(); err == nil {
 		return "deepseek", nil
 	} else {
-		return "", err
+		return "free", nil
 	}
 }
 
@@ -92,11 +92,12 @@ func (t *TranslateSubtitle) Execute(context map[string]interface{}) bool {
 	t.App.Logger.Infof("开始翻译字幕: VideoID=%s", t.StateManager.VideoID)
 	t.App.Logger.Info("========================================")
 
-	// 1. 检查英文字幕文件是否存在（由 GenerateSubtitles 任务生成）
-	enSRTPath := filepath.Join(t.StateManager.CurrentDir, fmt.Sprintf("%s.srt", t.StateManager.VideoID))
-	if _, err := os.Stat(enSRTPath); os.IsNotExist(err) {
+	// 1. 检查英文字幕文件是否存在（由 GenerateSubtitles/Bcut 任务生成）
+	enSRTPath, err := t.findSourceSRTPath()
+	if err != nil {
 		t.App.Logger.Warn("⚠️  英文字幕文件不存在，跳过翻译")
-		return true // 没有字幕文件不算失败
+		context["error"] = "字幕源文件不存在，请先完成生成字幕步骤"
+		return false
 	}
 
 	// 2. 读取并解析英文字幕文件
@@ -199,6 +200,36 @@ func (t *TranslateSubtitle) Execute(context map[string]interface{}) bool {
 	t.App.Logger.Info("========================================")
 
 	return true
+}
+
+func (t *TranslateSubtitle) findSourceSRTPath() (string, error) {
+	if t.StateManager == nil {
+		return "", fmt.Errorf("任务状态未初始化")
+	}
+
+	candidates := []string{
+		t.StateManager.OriginalSRT,
+		filepath.Join(t.StateManager.CurrentDir, "en.srt"),
+		filepath.Join(t.StateManager.CurrentDir, fmt.Sprintf("%s.srt", t.StateManager.VideoID)),
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+	}
+
+	return "", fmt.Errorf("未找到字幕源文件")
 }
 
 // parseSRTContent 解析SRT文件内容
@@ -372,6 +403,9 @@ func (t *TranslateSubtitle) translateGroupSimple(texts []string) ([]string, erro
 
 	if provider, err := t.getTranslationProvider(); err == nil && provider == "deeplx" {
 		return t.translateGroupWithDeepLX(texts)
+	}
+	if provider, err := t.getTranslationProvider(); err == nil && provider == "free" {
+		return t.translateGroupWithFreeProviders(texts)
 	}
 
 	// 直接组合文本

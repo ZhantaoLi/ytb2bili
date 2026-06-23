@@ -35,7 +35,6 @@ type AppConfig struct {
 	AnalyticsConfig        *AnalyticsConfig        `toml:"AnalyticsConfig"`        // 数据分析配置
 	BilibiliConfig         *BilibiliConfig         `toml:"BilibiliConfig"`         // Bilibili上传配置
 	WhisperConfig          *WhisperConfig          `toml:"WhisperConfig"`          // Whisper 语音识别配置
-	MimoASRConfig          *MimoASRConfig          `toml:"MimoASRConfig"`          // MiMo ASR 配置
 }
 
 // BilibiliConfig Bilibili上传配置
@@ -203,17 +202,6 @@ type WhisperConfig struct {
 	Threads   int    `toml:"threads"`    // 使用的线程数
 }
 
-// MimoASRConfig MiMo ASR 语音识别配置
-type MimoASRConfig struct {
-	Enabled        bool   `toml:"enabled"`
-	APIKey         string `toml:"api_key"`
-	BaseURL        string `toml:"base_url"`
-	Model          string `toml:"model"`
-	Language       string `toml:"language"`
-	SegmentSeconds int    `toml:"segment_seconds"`
-	Timeout        int    `toml:"timeout"`
-}
-
 // OpenAICompatibleConfig OpenAI兼容API配置
 type OpenAICompatibleConfig struct {
 	Enabled     bool    `toml:"enabled"`     // 是否启用
@@ -233,7 +221,7 @@ func NewDefaultConfig() *AppConfig {
 		Environment: "development",
 		Debug:       true,
 		DataPath:    "./data", // 默认数据存储路径
-		AutoUpload:  false,     // 默认关闭自动上传：视频准备到就绪态后停在 200，由用户手动上传
+		AutoUpload:  false,    // 默认关闭自动上传：视频准备到就绪态后停在 200，由用户手动上传
 		Database: Database{
 			Type:     "postgres",
 			Host:     "localhost",
@@ -246,7 +234,7 @@ func NewDefaultConfig() *AppConfig {
 		},
 
 		Auth: AuthConfig{
-			JWTSecret:     "your-jwt-secret-key",
+			JWTSecret:     "",
 			JWTExpiration: 24,
 			SessionSecret: "your-session-secret",
 		},
@@ -347,16 +335,6 @@ func NewDefaultConfig() *AppConfig {
 			MaxTokens:   4000,
 			Temperature: 0.7,
 		},
-
-		MimoASRConfig: &MimoASRConfig{
-			Enabled:        false,
-			APIKey:         "",
-			BaseURL:        "https://ai.muapi.cn/v1",
-			Model:          "mimo-v2.5-asr",
-			Language:       "auto",
-			SegmentSeconds: 90,
-			Timeout:        120,
-		},
 	}
 }
 
@@ -373,82 +351,9 @@ func LoadConfig(configFile string) (*AppConfig, error) {
 		return config, nil
 	}
 
-	// 创建临时结构体用于读取 config.toml（只包含可配置字段）
-	var fileConfig struct {
-		Listen                 string                  `toml:"listen"`
-		Environment            string                  `toml:"environment"`
-		Debug                  bool                    `toml:"debug"`
-		Database               Database                `toml:"database"`
-		Auth                   AuthConfig              `toml:"auth"`
-		APIAuth                APIAuthConfig           `toml:"api_auth"`
-		FileUpDir              string                  `toml:"fileUpDir"`
-		DataPath               string                  `toml:"data_path"`
-		YtDlpPath              string                  `toml:"yt_dlp_path"`
-		AutoUpload             bool                    `toml:"auto_upload"`
-		PrimaryAIService       string                  `toml:"primary_ai_service"`
-		TenCosConfig           *TencentCosConfig       `toml:"TenCosConfig"`
-		OpenAICompatibleConfig *OpenAICompatibleConfig `toml:"OpenAICompatibleConfig"`
-		DeepLXConfig           *DeepLXConfig           `toml:"DeepLXConfig"`
-		DeepSeekTransConfig    *DeepSeekTransConfig    `toml:"DeepSeekTransConfig"`
-		GeminiConfig           *GeminiConfig           `toml:"GeminiConfig"`
-		ProxyConfig            *ProxyConfig            `toml:"ProxyConfig"`
-		AnalyticsConfig        *AnalyticsConfig        `toml:"AnalyticsConfig"`
-		BilibiliConfig         *BilibiliConfig         `toml:"BilibiliConfig"`
-		WhisperConfig          *WhisperConfig          `toml:"WhisperConfig"`
-		MimoASRConfig          *MimoASRConfig          `toml:"MimoASRConfig"`
-	}
-
-	// 解码TOML配置文件
-	_, err = toml.DecodeFile(configFile, &fileConfig)
-	if err != nil {
+	if _, err := toml.DecodeFile(configFile, config); err != nil {
 		return nil, err
 	}
-
-	// 只覆盖配置文件中存在的字段，保留硬编码的配置
-	config.Listen = fileConfig.Listen
-	config.Environment = fileConfig.Environment
-	config.Debug = fileConfig.Debug
-	config.Database = fileConfig.Database
-	config.Auth = fileConfig.Auth
-	config.FileUpDir = fileConfig.FileUpDir
-	config.DataPath = fileConfig.DataPath
-	config.YtDlpPath = fileConfig.YtDlpPath
-	config.AutoUpload = fileConfig.AutoUpload
-	config.PrimaryAIService = fileConfig.PrimaryAIService
-
-	config.APIAuth = fileConfig.APIAuth
-
-	if fileConfig.TenCosConfig != nil {
-		config.TenCosConfig = fileConfig.TenCosConfig
-	}
-	if fileConfig.OpenAICompatibleConfig != nil {
-		config.OpenAICompatibleConfig = fileConfig.OpenAICompatibleConfig
-	}
-	if fileConfig.DeepLXConfig != nil {
-		config.DeepLXConfig = fileConfig.DeepLXConfig
-	}
-	if fileConfig.DeepSeekTransConfig != nil {
-		config.DeepSeekTransConfig = fileConfig.DeepSeekTransConfig
-	}
-	if fileConfig.GeminiConfig != nil {
-		config.GeminiConfig = fileConfig.GeminiConfig
-	}
-	if fileConfig.ProxyConfig != nil {
-		config.ProxyConfig = fileConfig.ProxyConfig
-	}
-	if fileConfig.AnalyticsConfig != nil {
-		config.AnalyticsConfig = fileConfig.AnalyticsConfig
-	}
-	if fileConfig.BilibiliConfig != nil {
-		config.BilibiliConfig = fileConfig.BilibiliConfig
-	}
-	if fileConfig.WhisperConfig != nil {
-		config.WhisperConfig = fileConfig.WhisperConfig
-	}
-	if fileConfig.MimoASRConfig != nil {
-		config.MimoASRConfig = fileConfig.MimoASRConfig
-	}
-
 	return config, nil
 }
 
@@ -476,7 +381,6 @@ func SaveConfig(config *AppConfig) error {
 		AnalyticsConfig        *AnalyticsConfig        `toml:"AnalyticsConfig"`
 		BilibiliConfig         *BilibiliConfig         `toml:"BilibiliConfig"`
 		WhisperConfig          *WhisperConfig          `toml:"WhisperConfig"`
-		MimoASRConfig          *MimoASRConfig          `toml:"MimoASRConfig"`
 	}{
 		Listen:                 config.Listen,
 		Environment:            config.Environment,
@@ -498,7 +402,6 @@ func SaveConfig(config *AppConfig) error {
 		AnalyticsConfig:        config.AnalyticsConfig,
 		BilibiliConfig:         config.BilibiliConfig,
 		WhisperConfig:          config.WhisperConfig,
-		MimoASRConfig:          config.MimoASRConfig,
 	}
 
 	buf := new(bytes.Buffer)
@@ -516,5 +419,5 @@ func SaveConfig(config *AppConfig) error {
 		return err
 	}
 
-	return os.WriteFile(config.Path, buf.Bytes(), 0644)
+	return os.WriteFile(config.Path, buf.Bytes(), 0600)
 }

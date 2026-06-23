@@ -90,6 +90,8 @@ base_url = "http://127.0.0.1:11434/v1"   # 本地 Ollama/OpenAI 兼容端点
 # 字幕翻译 API（可选，默认关闭）
 # DeepLX 适合直接翻译字幕句子；endpoint 必须由使用者自行填写完整 /translate 地址。
 [DeepLXConfig]
+# Default subtitle translation uses free Bing first, then Google fallback.
+# Enable this section only when you want to override the free translator.
 enabled = false
 endpoint = ""
 source_lang = "EN"
@@ -107,17 +109,6 @@ model = "qwen2.5:7b"
 timeout = 60
 max_tokens = 4000
 temperature = 0.7
-
-# ASR API（可选，默认关闭）。用于无 YouTube 字幕时生成 SRT。
-# 需要自行配置兼容 MiMo ASR 的 /v1/chat/completions 服务和 API Key。
-[MimoASRConfig]
-enabled = false
-api_key = ""
-base_url = "https://ai.muapi.cn/v1"
-model = "mimo-v2.5-asr"
-language = "auto"
-segment_seconds = 90
-timeout = 120
 
 # 代理配置（可选，用于 yt-dlp 下载、字幕获取等网络请求）
 # use_proxy=true 时，proxy_host 会传给 yt-dlp 的 --proxy，并用于部分 HTTP 客户端。
