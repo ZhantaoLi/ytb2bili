@@ -1,12 +1,12 @@
 package chain_task
 
 import (
+	"fmt"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/handlers"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
 	"github.com/ZhantaoLi/ytb2bili/internal/core"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
-	"fmt"
 	"path/filepath"
 	"sync"
 	"time"
@@ -53,7 +53,7 @@ func NewUploadScheduler(
 // SetUp 启动上传调度器
 func (s *UploadScheduler) SetUp() {
 	// 每5分钟检查一次是否需要上传
-	s.Task.AddFunc("*/5 * * * *", func() {
+	if _, err := s.Task.AddFunc("0 */5 * * * *", func() {
 		s.mutex.Lock()
 		defer s.mutex.Unlock()
 
@@ -85,7 +85,10 @@ func (s *UploadScheduler) SetUp() {
 				s.lastSubtitleUploadTime = now
 			}
 		}
-	})
+	}); err != nil {
+		s.logger.Errorf("注册上传调度任务失败: %v", err)
+		return
+	}
 
 	s.logger.Info("✓ Upload scheduler started, checking every 5 minutes")
 }
@@ -121,8 +124,13 @@ func (s *UploadScheduler) uploadNextVideo() error {
 	s.logger.Infof("📤 开始上传视频: %s (VideoID: %s)", video.Title, video.VideoID)
 
 	// 更新状态为 '201' (上传视频中)
-	if err := s.SavedVideoService.UpdateStatus(video.ID, "201"); err != nil {
+	updated, err := s.SavedVideoService.UpdateStatusIfCurrent(video.ID, "200", "201")
+	if err != nil {
 		return fmt.Errorf("更新视频状态失败: %v", err)
+	}
+	if !updated {
+		s.logger.Infof("视频 %s 状态已被其他执行器抢占，跳过本次自动上传", video.VideoID)
+		return nil
 	}
 
 	// 执行上传任务
@@ -175,8 +183,13 @@ func (s *UploadScheduler) uploadNextSubtitle() error {
 	s.logger.Infof("📝 开始上传字幕: %s (VideoID: %s)", video.Title, video.VideoID)
 
 	// 更新状态为 '301' (上传字幕中)
-	if err := s.SavedVideoService.UpdateStatus(video.ID, "301"); err != nil {
+	updated, err := s.SavedVideoService.UpdateStatusIfCurrent(video.ID, "300", "301")
+	if err != nil {
 		return fmt.Errorf("更新视频状态失败: %v", err)
+	}
+	if !updated {
+		s.logger.Infof("视频 %s 字幕状态已被其他执行器抢占，跳过本次自动上传", video.VideoID)
+		return nil
 	}
 
 	// 执行上传字幕任务
@@ -255,7 +268,7 @@ func (s *UploadScheduler) executeUploadTask(videoID, taskName string) error {
 		if err := s.TaskStepService.UpdateTaskStepResult(videoID, taskName, result); err != nil {
 			s.logger.Errorf("更新任务步骤结果失败: %v", err)
 		}
-		
+
 		// 如果是上传视频任务且成功，更新主状态为 "300" (已上传)
 		if taskName == "上传到Bilibili" {
 			if video, err := s.SavedVideoService.GetVideoByVideoID(videoID); err == nil {
@@ -281,7 +294,7 @@ func (s *UploadScheduler) executeUploadTask(videoID, taskName string) error {
 // ExecuteManualUpload 手动执行上传任务（用于 Web 界面手动触发）
 func (s *UploadScheduler) ExecuteManualUpload(videoID, taskType string) error {
 	s.logger.Infof("🎯 手动执行上传任务: VideoID=%s, TaskType=%s", videoID, taskType)
-	
+
 	var taskName string
 	switch taskType {
 	case "video":
@@ -291,7 +304,6 @@ func (s *UploadScheduler) ExecuteManualUpload(videoID, taskType string) error {
 	default:
 		return fmt.Errorf("未知的任务类型: %s", taskType)
 	}
-	
+
 	return s.executeUploadTask(videoID, taskName)
 }
-

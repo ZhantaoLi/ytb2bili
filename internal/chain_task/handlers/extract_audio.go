@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
 	"github.com/ZhantaoLi/ytb2bili/internal/core"
@@ -28,10 +31,25 @@ func NewExtractAudio(name string, app *core.AppServer, stateManager *manager.Sta
 }
 
 func (t *ExtractAudio) Execute(context map[string]interface{}) bool {
-	fmt.Println("开始分离音频")
-	if err := utils.ExtractAudio(t.StateManager.InputVideoPath, t.StateManager.OriginalMP3); err != nil {
-		fmt.Println("--- 分离音频失败-----")
+	sourcePath := t.StateManager.InputVideoPath
+	if downloadedFile, ok := context["downloaded_file"].(string); ok && downloadedFile != "" {
+		sourcePath = downloadedFile
 	}
-	fmt.Println("分离音频完成")
+
+	if _, err := os.Stat(sourcePath); err != nil {
+		context["error"] = fmt.Sprintf("source video not found for audio extraction: %v", err)
+		return false
+	}
+
+	if err := os.MkdirAll(filepath.Dir(t.StateManager.OriginalMP3), 0755); err != nil {
+		context["error"] = fmt.Sprintf("create audio output directory failed: %v", err)
+		return false
+	}
+
+	if err := utils.ExtractAudio(sourcePath, t.StateManager.OriginalMP3); err != nil {
+		context["error"] = fmt.Sprintf("extract audio failed: %v", err)
+		return false
+	}
+
 	return true
 }

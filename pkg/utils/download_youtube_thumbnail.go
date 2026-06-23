@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,6 +47,7 @@ type DownloadOptions struct {
 	QualityFallback  bool
 	CreateDirs       bool
 	Overwrite        bool
+	ProxyURL         string
 }
 
 type YouTubeThumbnailDownloader struct {
@@ -63,6 +65,22 @@ func NewYouTubeThumbnailDownloader(opt DownloadOptions) *YouTubeThumbnailDownloa
 		opt.MaxRetries = 3
 	}
 	return &YouTubeThumbnailDownloader{Options: opt}
+}
+
+func (d *YouTubeThumbnailDownloader) httpClient() (*http.Client, error) {
+	client := &http.Client{Timeout: d.Options.Timeout}
+	if strings.TrimSpace(d.Options.ProxyURL) == "" {
+		return client, nil
+	}
+
+	proxyURL, err := url.Parse(d.Options.ProxyURL)
+	if err != nil {
+		return nil, fmt.Errorf("代理地址无效: %v", err)
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = http.ProxyURL(proxyURL)
+	client.Transport = transport
+	return client, nil
 }
 
 func (d *YouTubeThumbnailDownloader) buildFilePath(videoID string, quality ImageQuality, customFilename string) (string, error) {
@@ -98,9 +116,12 @@ func (d *YouTubeThumbnailDownloader) downloadSingleQuality(videoID string, quali
 		}
 	}
 	var lastErr error
+	client, err := d.httpClient()
+	if err != nil {
+		return DownloadResult{Success: false, ErrorMessage: err.Error(), Quality: string(quality)}
+	}
 	for attempt := 0; attempt < d.Options.MaxRetries; attempt++ {
 		log.Printf("尝试下载 %s 质量图片，第 %d 次: %s", quality, attempt+1, url)
-		client := &http.Client{Timeout: d.Options.Timeout}
 		resp, err := client.Get(url)
 		if err != nil {
 			lastErr = err

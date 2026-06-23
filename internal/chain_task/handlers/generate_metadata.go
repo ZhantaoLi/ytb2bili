@@ -208,12 +208,12 @@ func (g *GenerateMetadata) executeWithDeepSeek(context map[string]interface{}) b
 		g.App.Logger.Errorf("❌ 获取视频记录失败: %v", err)
 		// 不影响任务继续执行
 	} else {
-		// 更新生成的元数据
-		savedVideo.GeneratedTitle = metadata.Title
-		savedVideo.GeneratedDesc = metadata.Description
-		savedVideo.GeneratedTags = strings.Join(metadata.Tags, ",")
-
-		if err := g.SavedVideoService.UpdateVideo(savedVideo); err != nil {
+		if err := g.SavedVideoService.UpdateGeneratedMetadata(
+			savedVideo.ID,
+			metadata.Title,
+			metadata.Description,
+			strings.Join(metadata.Tags, ","),
+		); err != nil {
 			g.App.Logger.Errorf("❌ 保存元数据到数据库失败: %v", err)
 		} else {
 			g.App.Logger.Info("✅ 元数据已保存到数据库")
@@ -609,11 +609,12 @@ func (g *GenerateMetadata) saveMetadataResults(metadata *VideoMetadata, taskCont
 	if err != nil {
 		g.App.Logger.Errorf("❌ 获取视频记录失败: %v", err)
 	} else {
-		savedVideo.GeneratedTitle = metadata.Title
-		savedVideo.GeneratedDesc = metadata.Description
-		savedVideo.GeneratedTags = strings.Join(metadata.Tags, ",")
-
-		if err := g.SavedVideoService.UpdateVideo(savedVideo); err != nil {
+		if err := g.SavedVideoService.UpdateGeneratedMetadata(
+			savedVideo.ID,
+			metadata.Title,
+			metadata.Description,
+			strings.Join(metadata.Tags, ","),
+		); err != nil {
 			g.App.Logger.Errorf("❌ 保存元数据到数据库失败: %v", err)
 		} else {
 			g.App.Logger.Info("✅ 元数据已保存到数据库")

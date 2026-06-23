@@ -2,8 +2,8 @@ package manager
 
 import (
 	"fmt"
-	"log"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
+	"log"
 )
 
 // TaskChain 任务链
@@ -43,6 +43,7 @@ func (c *TaskChain) Run(stopOnFailure bool) map[string]interface{} {
 			defer func() {
 				if r := recover(); r != nil {
 					message = fmt.Sprintf("任务执行异常: %v", r)
+					c.Context["error"] = message
 					log.Printf("任务 %s 发生异常: %v", taskName, r)
 
 				}
@@ -56,6 +57,9 @@ func (c *TaskChain) Run(stopOnFailure bool) map[string]interface{} {
 		} else if message == "" { // 非异常导致的失败
 			// 更新任务状态为失败
 
+			if _, exists := c.Context["error"]; !exists {
+				c.Context["error"] = fmt.Sprintf("task %s failed", taskName)
+			}
 			log.Printf("任务 %s 执行失败，终止链", taskName)
 			if stopOnFailure {
 				break

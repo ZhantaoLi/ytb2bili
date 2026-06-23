@@ -1,13 +1,14 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
 	"github.com/ZhantaoLi/ytb2bili/internal/core"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
 	"github.com/ZhantaoLi/ytb2bili/internal/storage"
-	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
+	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"os"
 	"path/filepath"
 )
@@ -41,15 +42,29 @@ func (t *UploadSubtitleToBilibili) Execute(context map[string]interface{}) bool 
 		// 尝试从数据库获取BVID
 		savedVideo, err := t.SavedVideoService.GetVideoByVideoID(t.StateManager.VideoID)
 		if err != nil || savedVideo.BiliBVID == "" {
-			t.App.Logger.Warn("⚠️  没有找到BVID，跳过字幕上传")
-			return true // 不算失败，只是跳过
+			errMsg := "未找到 BVID，无法上传字幕到 Bilibili"
+			if err != nil {
+				errMsg = fmt.Sprintf("%s: %v", errMsg, err)
+			}
+			t.App.Logger.Warnf("⚠️  %s", errMsg)
+			context["error"] = errMsg
+			return false
 		}
 		bvid = savedVideo.BiliBVID
 	}
 
 	t.App.Logger.Infof("📺 视频BVID: %s", bvid)
 
-	// 2. 检查登录信息
+	// 2. 先确认字幕文件存在，避免缺少产物时把任务标记为成功。
+	subtitleFiles := t.findSubtitleFiles()
+	if len(subtitleFiles) == 0 {
+		errMsg := "未找到字幕文件，无法上传字幕到 Bilibili"
+		t.App.Logger.Warnf("⚠️  %s", errMsg)
+		context["error"] = errMsg
+		return false
+	}
+
+	// 3. 检查登录信息
 	loginStore := storage.GetDefaultStore()
 	if !loginStore.IsValid() {
 		t.App.Logger.Error("❌ 没有有效的 Bilibili 登录信息，无法上传字幕")
@@ -62,13 +77,6 @@ func (t *UploadSubtitleToBilibili) Execute(context map[string]interface{}) bool 
 		t.App.Logger.Errorf("❌ 加载登录信息失败: %v", err)
 		context["error"] = "加载登录信息失败"
 		return false
-	}
-
-	// 3. 查找字幕文件
-	subtitleFiles := t.findSubtitleFiles()
-	if len(subtitleFiles) == 0 {
-		t.App.Logger.Warn("⚠️  未找到字幕文件，跳过字幕上传")
-		return true // 不算失败，只是跳过
 	}
 
 	// 4. 创建 Bilibili 客户端和字幕上传器
@@ -122,6 +130,7 @@ func (t *UploadSubtitleToBilibili) findSubtitleFiles() []SubtitleFileInfo {
 		filename string
 		language string
 	}{
+		{"zh.srt", "zh-Hans"},
 		{"zh_optimized.srt", "zh-Hans"}, // 中文简体
 		{"en.srt", "en"},                // 英文
 		//{"zh-cn.srt", "zh-Hans"}, // 中文简体

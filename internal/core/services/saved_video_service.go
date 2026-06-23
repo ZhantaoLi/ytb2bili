@@ -17,10 +17,10 @@ func NewSavedVideoService(db *gorm.DB) *SavedVideoService {
 	}
 }
 
-// GetPendingVideos 获取待处理的视频列表（状态为 001 且 subtitles 不为空）
+// GetPendingVideos 获取待处理的视频列表（状态为 001）
 func (s *SavedVideoService) GetPendingVideos(limit int) ([]model.SavedVideo, error) {
 	var videos []model.SavedVideo
-	err := s.DB.Where("status = ? AND subtitles IS NOT NULL AND subtitles != ''", "001").
+	err := s.DB.Where("status = ?", "001").
 		Order("created_at ASC").
 		Limit(limit).
 		Find(&videos).Error
@@ -54,9 +54,32 @@ func (s *SavedVideoService) UpdateStatus(id uint, status string) error {
 		Update("status", status).Error
 }
 
+// UpdateStatusIfCurrent 原子状态流转：只有当前状态仍是 expectedStatus 时才更新。
+// 用于上传抢占，避免 cron 和手动上传同时处理同一条视频。
+func (s *SavedVideoService) UpdateStatusIfCurrent(id uint, expectedStatus, nextStatus string) (bool, error) {
+	result := s.DB.Model(&model.SavedVideo{}).
+		Where("id = ? AND status = ?", id, expectedStatus).
+		Update("status", nextStatus)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected == 1, nil
+}
+
 // UpdateVideo 更新视频信息
 func (s *SavedVideoService) UpdateVideo(video *model.SavedVideo) error {
 	return s.DB.Save(video).Error
+}
+
+// UpdateGeneratedMetadata 只更新生成的标题、简介和标签，避免整行保存覆盖任务状态。
+func (s *SavedVideoService) UpdateGeneratedMetadata(id uint, title, desc, tags string) error {
+	return s.DB.Model(&model.SavedVideo{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"generated_title": title,
+			"generated_desc":  desc,
+			"generated_tags":  tags,
+		}).Error
 }
 
 // CreateVideo 创建新视频记录
@@ -95,7 +118,7 @@ func (s *SavedVideoService) ListVideos(page, pageSize int, status string) ([]mod
 	var total int64
 
 	query := s.DB.Model(&model.SavedVideo{})
-	
+
 	// 如果指定状态，添加状态筛选
 	if status != "" {
 		query = query.Where("status = ?", status)
