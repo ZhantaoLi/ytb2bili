@@ -3,9 +3,12 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFormatDownloadErrorIncludesYtDlpStderr(t *testing.T) {
@@ -76,6 +79,19 @@ func TestIsYouTubeAuthChallenge(t *testing.T) {
 	}
 }
 
+func TestShouldReplaceDownloadFailureKeepsYouTubeAuthChallengeOverDPAPI(t *testing.T) {
+	current := []string{
+		"ERROR: [youtube] SRx8YiEwvoM: Sign in to confirm you're not a bot. Use --cookies-from-browser or --cookies for the authentication.",
+	}
+	candidate := []string{
+		"ERROR: Failed to decrypt with DPAPI. See https://github.com/yt-dlp/yt-dlp/issues/10927 for more info",
+	}
+
+	if shouldReplaceDownloadFailure(current, candidate) {
+		t.Fatal("DPAPI fallback error should not replace the more actionable YouTube cookies challenge")
+	}
+}
+
 func TestDefaultYtDlpFormatCapsVideoHeight(t *testing.T) {
 	if !strings.Contains(defaultYtDlpFormat, "height<=1080") {
 		t.Fatalf("default format should avoid unexpectedly large 4K downloads, got %q", defaultYtDlpFormat)
@@ -87,5 +103,52 @@ func TestNormalizeExecutablePathReturnsAbsolutePath(t *testing.T) {
 
 	if !filepath.IsAbs(got) {
 		t.Fatalf("expected absolute executable path, got %q", got)
+	}
+}
+
+func TestRunCommandWithTimeoutStopsLongRunningProcess(t *testing.T) {
+	if os.Getenv("YTB2BILI_TIMEOUT_HELPER") == "1" {
+		time.Sleep(time.Second)
+		return
+	}
+
+	command := []string{os.Args[0], "-test.run=TestRunCommandWithTimeoutStopsLongRunningProcess"}
+	_, err := runCommandWithTimeout(
+		command,
+		"",
+		20*time.Millisecond,
+		[]string{"YTB2BILI_TIMEOUT_HELPER=1"},
+		func(reader io.Reader) {
+			_, _ = io.Copy(io.Discard, reader)
+		},
+		func(reader io.Reader) []string {
+			_, _ = io.Copy(io.Discard, reader)
+			return nil
+		},
+	)
+
+	if err == nil {
+		t.Fatal("runCommandWithTimeout() error = nil, want timeout error")
+	}
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("runCommandWithTimeout() error = %q, want timed out", err)
+	}
+}
+
+func TestParseYtDlpMetadataIgnoresLeadingWarnings(t *testing.T) {
+	raw := []byte("WARNING: Your yt-dlp version is older than 90 days!\nWARNING: To suppress this warning, add --no-update.\n{\"title\":\"GLM 5.2 vs Claude Was Crazy\",\"description\":\"sample desc\",\"uploader\":\"creator\",\"duration\":943}\n")
+
+	metadata, err := parseYtDlpMetadata(raw)
+	if err != nil {
+		t.Fatalf("parseYtDlpMetadata() error = %v", err)
+	}
+	if metadata.Title != "GLM 5.2 vs Claude Was Crazy" {
+		t.Fatalf("title = %q, want parsed title", metadata.Title)
+	}
+	if metadata.Description != "sample desc" {
+		t.Fatalf("description = %q, want parsed description", metadata.Description)
+	}
+	if metadata.Duration != 943 {
+		t.Fatalf("duration = %d, want 943", metadata.Duration)
 	}
 }

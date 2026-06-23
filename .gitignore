@@ -43,7 +43,9 @@ output/
 .env.local
 *.bak
 *.7z
-tools/
+tools/*
+!tools/refresh_metadata/
+!tools/refresh_metadata/**
 web/tsconfig.tsbuildinfo
 
 # 上传文件

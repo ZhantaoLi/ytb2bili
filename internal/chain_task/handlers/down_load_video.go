@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
@@ -33,6 +36,7 @@ type ytDlpAuthAttempt struct {
 }
 
 const defaultYtDlpFormat = "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
+const defaultDownloadCommandTimeout = 2 * time.Hour
 
 func NewDownloadVideo(name string, app *core.AppServer, stateManager *manager.StateManager, client *cos.CosClient, savedVideoService *services.SavedVideoService) *DownloadVideo {
 	return &DownloadVideo{
@@ -65,6 +69,10 @@ func (t *DownloadVideo) findYtDlp() (string, error) {
 	}
 
 	return "", fmt.Errorf("未找到 yt-dlp，请确保已正确安装")
+}
+
+func (t *DownloadVideo) FindYtDlp() (string, error) {
+	return t.findYtDlp()
 }
 
 func normalizeExecutablePath(path string) string {
@@ -236,8 +244,10 @@ func (t *DownloadVideo) executeDownload(ytdlpPath, videoURL string, useProxy boo
 			break
 		}
 
-		lastErr = err
-		lastStderr = stderrLines
+		if shouldReplaceDownloadFailure(lastStderr, stderrLines) {
+			lastErr = err
+			lastStderr = stderrLines
+		}
 		t.App.Logger.Errorf("❌ 视频下载失败: %v", err)
 
 		if isYouTubeAuthChallenge(stderrLines) && i+1 < len(authAttempts) {
@@ -245,7 +255,7 @@ func (t *DownloadVideo) executeDownload(ytdlpPath, videoURL string, useProxy boo
 			continue
 		}
 
-		context["error"] = formatDownloadError(err, stderrLines)
+		context["error"] = formatDownloadError(lastErr, lastStderr)
 		return false
 	}
 
@@ -300,6 +310,16 @@ func (t *DownloadVideo) executeDownload(ytdlpPath, videoURL string, useProxy boo
 	return true
 }
 
+func shouldReplaceDownloadFailure(currentStderr, candidateStderr []string) bool {
+	if len(currentStderr) == 0 {
+		return true
+	}
+	if isYouTubeAuthChallenge(currentStderr) && !isYouTubeAuthChallenge(candidateStderr) {
+		return false
+	}
+	return true
+}
+
 func (t *DownloadVideo) buildDownloadCommand(ytdlpPath, videoURL string, useProxy bool, authAttempt ytDlpAuthAttempt) []string {
 	command := []string{
 		ytdlpPath,
@@ -324,25 +344,47 @@ func (t *DownloadVideo) buildDownloadCommand(ytdlpPath, videoURL string, useProx
 }
 
 func (t *DownloadVideo) runDownloadCommand(command []string) ([]string, error) {
-	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Dir = t.StateManager.CurrentDir
+	return runCommandWithTimeout(
+		command,
+		t.StateManager.CurrentDir,
+		defaultDownloadCommandTimeout,
+		nil,
+		func(reader io.Reader) {
+			t.logOutput(reader, "INFO")
+		},
+		func(reader io.Reader) []string {
+			return t.logAndCollectOutput(reader, "ERROR")
+		},
+	)
+}
+
+func runCommandWithTimeout(command []string, workDir string, timeout time.Duration, extraEnv []string, stdoutHandler func(io.Reader), stderrHandler func(io.Reader) []string) ([]string, error) {
+	if timeout <= 0 {
+		timeout = defaultDownloadCommandTimeout
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+	cmd.Dir = workDir
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 
 	// 捕获标准输出和标准错误
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		t.App.Logger.Errorf("❌ 创建标准输出管道失败: %v", err)
 		return nil, err
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		t.App.Logger.Errorf("❌ 创建标准错误管道失败: %v", err)
 		return nil, err
 	}
 
 	// 启动命令
 	if err := cmd.Start(); err != nil {
-		t.App.Logger.Errorf("❌ 启动下载命令失败: %v", err)
 		return nil, err
 	}
 
@@ -352,16 +394,23 @@ func (t *DownloadVideo) runDownloadCommand(command []string) ([]string, error) {
 	outputWG.Add(2)
 	go func() {
 		defer outputWG.Done()
-		t.logOutput(stdout, "INFO")
+		if stdoutHandler != nil {
+			stdoutHandler(stdout)
+		}
 	}()
 	go func() {
 		defer outputWG.Done()
-		stderrLines = t.logAndCollectOutput(stderr, "ERROR")
+		if stderrHandler != nil {
+			stderrLines = stderrHandler(stderr)
+		}
 	}()
 
 	// 等待命令完成
 	if err := cmd.Wait(); err != nil {
 		outputWG.Wait()
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return stderrLines, fmt.Errorf("command timed out after %s", timeout)
+		}
 		return stderrLines, err
 	}
 	outputWG.Wait()
@@ -535,11 +584,7 @@ func (t *DownloadVideo) getVideoMetadata(ytdlpPath string) (*VideoMetadataInfo, 
 	for i, authAttempt := range authAttempts {
 		output, err := t.runMetadataCommand(ytdlpPath, videoURL, useProxy, authAttempt)
 		if err == nil {
-			var metadata VideoMetadataInfo
-			if err := json.Unmarshal(output, &metadata); err != nil {
-				return nil, fmt.Errorf("解析元数据失败: %v", err)
-			}
-			return &metadata, nil
+			return parseYtDlpMetadata(output)
 		}
 
 		if isYouTubeAuthChallenge([]string{err.Error()}) && i+1 < len(authAttempts) {
@@ -552,16 +597,29 @@ func (t *DownloadVideo) getVideoMetadata(ytdlpPath string) (*VideoMetadataInfo, 
 			output, err = t.runMetadataCommand(ytdlpPath, videoURL, false, authAttempt)
 			if err == nil {
 				t.App.Logger.Info("✓ 不使用代理成功获取元数据")
-				var metadata VideoMetadataInfo
-				if err := json.Unmarshal(output, &metadata); err != nil {
-					return nil, fmt.Errorf("解析元数据失败: %v", err)
-				}
-				return &metadata, nil
+				return parseYtDlpMetadata(output)
 			}
 		}
 	}
 
 	return nil, fmt.Errorf("获取元数据失败")
+}
+
+func (t *DownloadVideo) GetVideoMetadata(ytdlpPath string) (*VideoMetadataInfo, error) {
+	return t.getVideoMetadata(ytdlpPath)
+}
+
+func parseYtDlpMetadata(output []byte) (*VideoMetadataInfo, error) {
+	text := strings.TrimSpace(string(output))
+	if jsonStart := strings.Index(text, "{"); jsonStart > 0 {
+		text = text[jsonStart:]
+	}
+
+	var metadata VideoMetadataInfo
+	if err := json.Unmarshal([]byte(text), &metadata); err != nil {
+		return nil, fmt.Errorf("解析元数据失败: %v", err)
+	}
+	return &metadata, nil
 }
 
 func (t *DownloadVideo) runMetadataCommand(ytdlpPath, videoURL string, useProxy bool, authAttempt ytDlpAuthAttempt) ([]byte, error) {

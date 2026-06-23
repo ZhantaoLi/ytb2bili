@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
 	"github.com/ZhantaoLi/ytb2bili/internal/core"
@@ -17,6 +15,7 @@ import (
 	"github.com/ZhantaoLi/ytb2bili/internal/storage"
 	"github.com/ZhantaoLi/ytb2bili/pkg/cos"
 	"github.com/ZhantaoLi/ytb2bili/pkg/utils"
+	"github.com/difyz9/bilibili-go-sdk/bilibili"
 )
 
 // https://github.com/biliup/biliup/issues/65
@@ -72,9 +71,9 @@ func (t *UploadToBilibili) fetchAndSaveMetadata(videoID string) error {
 		return fmt.Errorf("执行 yt-dlp 失败: %v", err)
 	}
 
-	// 4. 解析 JSON
-	var metadata VideoMetadataInfo
-	if err := json.Unmarshal(output, &metadata); err != nil {
+	// 4. 解析 JSON。yt-dlp 可能在 JSON 前输出 WARNING，需要复用下载链路的容错解析。
+	metadata, err := parseYtDlpMetadata(output)
+	if err != nil {
 		return fmt.Errorf("解析元数据失败: %v", err)
 	}
 
@@ -188,10 +187,10 @@ func (t *UploadToBilibili) Execute(context map[string]interface{}) bool {
 
 	// 6. 上传封面 (如果有)
 	coverURL := ""
-	if coverImagePath, ok := context["cover_image_path"].(string); ok && coverImagePath != "" {
+	if coverImagePath := t.resolveCoverImagePath(context); coverImagePath != "" {
 		t.App.Logger.Infof("📸 找到封面图片: %s", filepath.Base(coverImagePath))
 		t.App.Logger.Info("⏫ 开始上传封面...")
-		
+
 		uploadedCoverURL, err := uploadClient.UploadCover(coverImagePath)
 		if err != nil {
 			t.App.Logger.Errorf("❌ 上传封面失败: %v", err)
@@ -209,7 +208,7 @@ func (t *UploadToBilibili) Execute(context map[string]interface{}) bool {
 	t.App.Logger.Info("📝 提交视频投稿信息...")
 	t.App.Logger.Debugf("投稿标题: %s", studio.Title)
 	t.App.Logger.Debugf("投稿分区: %d", studio.Tid)
-	
+
 	result, err := uploadClient.SubmitVideo(studio)
 	if err != nil {
 		userFriendlyError := t.getUserFriendlyError(err, "提交视频")
@@ -225,7 +224,6 @@ func (t *UploadToBilibili) Execute(context map[string]interface{}) bool {
 		context["error"] = errMsg
 		return false
 	}
-
 
 	// 9. 保存上传结果到数据库
 	context["bili_video"] = video
@@ -307,6 +305,48 @@ func (t *UploadToBilibili) findVideoFiles() []string {
 	}
 
 	return videoFiles
+}
+
+func (t *UploadToBilibili) resolveCoverImagePath(context map[string]interface{}) string {
+	if context != nil {
+		if coverImagePath, ok := context["cover_image_path"].(string); ok && isUsableLocalFile(coverImagePath) {
+			return coverImagePath
+		}
+	}
+
+	coverImagePath := t.findLocalCoverImage()
+	if coverImagePath != "" && context != nil {
+		context["cover_image_path"] = coverImagePath
+	}
+	return coverImagePath
+}
+
+func (t *UploadToBilibili) findLocalCoverImage() string {
+	if t.StateManager == nil || strings.TrimSpace(t.StateManager.CurrentDir) == "" {
+		return ""
+	}
+
+	names := []string{
+		"maxresdefault.jpg",
+		"sddefault.jpg",
+		"hqdefault.jpg",
+		"mqdefault.jpg",
+		"default.jpg",
+		"cover.jpg",
+		"thumbnail.jpg",
+	}
+	for _, name := range names {
+		path := filepath.Join(t.StateManager.CurrentDir, name)
+		if isUsableLocalFile(path) {
+			return path
+		}
+	}
+	return ""
+}
+
+func isUsableLocalFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir() && info.Size() > 0
 }
 
 // buildStudioInfo 构建投稿信息
