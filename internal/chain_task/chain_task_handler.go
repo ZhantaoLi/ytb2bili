@@ -68,18 +68,12 @@ func (h *ChainTaskHandler) SetUp() {
 		retrySteps, err := h.getRetrySteps()
 		if err != nil {
 			h.App.Logger.Errorf("查询重试步骤失败: %v", err)
-		} else if len(retrySteps) > 0 {
-			h.App.Logger.Infof("发现 %d 个待重试的步骤", len(retrySteps))
+		} else if executableSteps := executableRetrySteps(retrySteps, h.App.Config.AutoUpload); len(executableSteps) > 0 {
+			h.App.Logger.Infof("发现 %d 个待重试的步骤", len(executableSteps))
 			h.isRunning = true
 
 			// 执行重试步骤
-			for _, step := range retrySteps {
-				// 如果是上传步骤且自动上传开关关闭，跳过
-				if step.StepName == "上传到Bilibili" && !h.App.Config.AutoUpload {
-					h.App.Logger.Infof("⏸️ 跳过重试上传步骤（自动上传已关闭）: %s", step.VideoID)
-					continue
-				}
-
+			for _, step := range executableSteps {
 				h.App.Logger.Infof("🔄 开始重试步骤: %s - %s", step.VideoID, step.StepName)
 				if err := h.RunSingleTaskStep(step.VideoID, step.StepName); err != nil {
 					h.App.Logger.Errorf("重试步骤失败: %v", err)
@@ -176,6 +170,32 @@ func (h *ChainTaskHandler) getPendingTasks() ([]*models2.TbVideo, error) {
 func (h *ChainTaskHandler) getRetrySteps() ([]*model.TaskStep, error) {
 	return h.TaskStepService.GetPendingSteps()
 }
+
+func executableRetrySteps(steps []*model.TaskStep, autoUpload bool) []*model.TaskStep {
+	executable := make([]*model.TaskStep, 0, len(steps))
+	for _, step := range steps {
+		if step == nil {
+			continue
+		}
+		if isUploadRetryStep(step.StepName) && !autoUpload {
+			continue
+		}
+		executable = append(executable, step)
+	}
+	return executable
+}
+
+func isUploadRetryStep(stepName string) bool {
+	return stepName == "上传到Bilibili" || stepName == "上传字幕到Bilibili"
+}
+
+func subtitleBranchStepToSkip(useBcut bool) string {
+	if useBcut {
+		return "生成字幕"
+	}
+	return "B站必剪转录"
+}
+
 func (h *ChainTaskHandler) RunTaskChain(video models2.TbVideo) {
 
 	currentDir, err := filepath.Abs(h.App.Config.FileUpDir)
@@ -201,12 +221,16 @@ func (h *ChainTaskHandler) RunTaskChain(video models2.TbVideo) {
 	downloadTask := handlers.NewDownloadVideo("下载视频", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
 	chain.AddTask(h.wrapTaskWithStepTracking(downloadTask, video.VideoId))
 
-	// 任务2: 生成字幕文件
+	// 任务2: 分离音频，供后续字幕分支使用
 	extractAudioTask := handlers.NewExtractAudio("分离音频", h.App, stateManager, h.App.CosClient)
 	chain.AddTask(h.wrapTaskWithStepTracking(extractAudioTask, video.VideoId))
 
 	// 任务3: 使用 B站必剪 转录生成字幕（如果启用）
-	if h.App.Config.WhisperConfig != nil && h.App.Config.WhisperConfig.Enabled {
+	useBcut := h.App.Config.WhisperConfig != nil && h.App.Config.WhisperConfig.Enabled
+	if err := h.TaskStepService.SkipTaskStepIfPending(video.VideoId, subtitleBranchStepToSkip(useBcut), "subtitle branch not selected"); err != nil {
+		h.App.Logger.Warnf("标记未执行字幕分支失败: %v", err)
+	}
+	if useBcut {
 		h.App.Logger.Info("✓ B站必剪 已启用，将使用 B站必剪 进行语音转录")
 		whisperTask := handlers.NewBcutHandler(
 			"B站必剪转录",
@@ -222,7 +246,7 @@ func (h *ChainTaskHandler) RunTaskChain(video models2.TbVideo) {
 		subtitleTask := handlers.NewGenerateSubtitles("生成字幕", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
 		chain.AddTask(h.wrapTaskWithStepTracking(subtitleTask, video.VideoId))
 	}
-	chain.AddTask(handlers.NewDownloadImgHandler("下载封面", h.App, stateManager, h.App.CosClient))
+	chain.AddTask(h.wrapTaskWithStepTracking(handlers.NewDownloadImgHandler("下载封面", h.App, stateManager, h.App.CosClient), video.VideoId))
 	// 任务3: 翻译字幕（动态检查配置）
 	translateTask := handlers.NewTranslateSubtitle("翻译字幕", h.App, stateManager, h.App.CosClient, h.Db, "")
 	chain.AddTask(h.wrapTaskWithStepTracking(translateTask, video.VideoId))
@@ -300,6 +324,15 @@ func (h *ChainTaskHandler) RunSingleTaskStep(videoID, stepName string) error {
 	// 创建状态管理器
 	stateManager := manager.NewStateManager(video.Id, video.VideoId, currentDir, video.CreatedAt)
 
+	useBcut := h.App.Config.WhisperConfig != nil && h.App.Config.WhisperConfig.Enabled
+	if stepName == subtitleBranchStepToSkip(useBcut) {
+		if err := h.TaskStepService.SkipTaskStepIfPending(videoID, stepName, "subtitle branch not selected"); err != nil {
+			return fmt.Errorf("标记未执行字幕分支失败: %v", err)
+		}
+		h.App.Logger.Infof("任务步骤 %s 已跳过：subtitle branch not selected", stepName)
+		return nil
+	}
+
 	// 重置步骤状态
 	if err := h.TaskStepService.ResetTaskStep(videoID, stepName); err != nil {
 		h.App.Logger.Errorf("重置任务步骤失败: %v", err)
@@ -312,48 +345,17 @@ func (h *ChainTaskHandler) RunSingleTaskStep(videoID, stepName string) error {
 
 	// 创建单个任务的链
 	chain := manager.NewTaskChain()
-	var task types.Task
+	task, err := h.buildSingleTaskStep(stepName, stateManager)
+	if err != nil {
+		return err
+	}
 
-	// 根据步骤名称创建对应的任务
-	switch stepName {
-	case "下载视频":
-		task = handlers.NewDownloadVideo("下载视频", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
-	case "分离音频":
-		task = handlers.NewExtractAudio("分离音频", h.App, stateManager, h.App.CosClient)
-	case "Whisper转录":
-		// 从配置中读取 Whisper 参数
-		if h.App.Config.WhisperConfig != nil && h.App.Config.WhisperConfig.Enabled {
-			task = handlers.NewBcutHandler(
-				"B站必剪转录",
-				h.App,
-				stateManager,
-				h.App.CosClient,
-				h.App.Config.WhisperConfig.Language,
-			)
-		} else {
-			return fmt.Errorf("B站必剪 未启用或配置不完整")
-		}
-	case "生成字幕":
-		task = handlers.NewGenerateSubtitles("生成字幕", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
-	case "翻译字幕":
-		// 不再在这里检查配置，让任务运行时动态检查最新配置
-		task = handlers.NewTranslateSubtitle("翻译字幕", h.App, stateManager, h.App.CosClient, h.Db, "")
-	case "生成元数据":
-		// 不再在这里检查配置，让任务运行时动态检查最新配置
-		task = handlers.NewGenerateMetadata("生成元数据", h.App, stateManager, h.App.CosClient, "", h.Db, h.SavedVideoService)
-	case "上传到Bilibili":
-		task = handlers.NewUploadToBilibili("上传到Bilibili", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
-	case "上传字幕到Bilibili":
-		fmt.Printf("注意: '上传字幕到Bilibili' 任务步骤已被注释掉，如需启用请取消注释相关代码。\n")
-		//task = handlers.NewUploadSubtitleToBilibili("上传字幕到Bilibili", h.App, stateManager, h.App.CosClient, h.SavedVideoService)
-	default:
-		return fmt.Errorf("未知的任务步骤: %s", stepName)
+	if task == nil {
+		return fmt.Errorf("任务步骤未创建: %s", stepName)
 	}
 
 	// 添加任务到链
-	if task != nil {
-		chain.AddTask(task)
-	}
+	chain.AddTask(task)
 
 	h.App.Logger.Infof("开始执行单个任务步骤: %s (VideoID: %s)", stepName, videoID)
 
@@ -391,6 +393,40 @@ func (h *ChainTaskHandler) RunSingleTaskStep(videoID, stepName string) error {
 	return nil
 }
 
+func (h *ChainTaskHandler) buildSingleTaskStep(stepName string, stateManager *manager.StateManager) (types.Task, error) {
+	switch stepName {
+	case "下载视频":
+		return handlers.NewDownloadVideo("下载视频", h.App, stateManager, h.App.CosClient, h.SavedVideoService), nil
+	case "分离音频":
+		return handlers.NewExtractAudio("分离音频", h.App, stateManager, h.App.CosClient), nil
+	case "B站必剪转录", "Whisper转录":
+		if h.App.Config.WhisperConfig != nil && h.App.Config.WhisperConfig.Enabled {
+			return handlers.NewBcutHandler(
+				"B站必剪转录",
+				h.App,
+				stateManager,
+				h.App.CosClient,
+				h.App.Config.WhisperConfig.Language,
+			), nil
+		}
+		return nil, fmt.Errorf("B站必剪 未启用或配置不完整")
+	case "生成字幕":
+		return handlers.NewGenerateSubtitles("生成字幕", h.App, stateManager, h.App.CosClient, h.SavedVideoService), nil
+	case "下载封面":
+		return handlers.NewDownloadImgHandler("下载封面", h.App, stateManager, h.App.CosClient), nil
+	case "翻译字幕":
+		return handlers.NewTranslateSubtitle("翻译字幕", h.App, stateManager, h.App.CosClient, h.Db, ""), nil
+	case "生成视频元数据", "生成元数据":
+		return handlers.NewGenerateMetadata("生成视频元数据", h.App, stateManager, h.App.CosClient, "", h.Db, h.SavedVideoService), nil
+	case "上传到Bilibili":
+		return handlers.NewUploadToBilibili("上传到Bilibili", h.App, stateManager, h.App.CosClient, h.SavedVideoService), nil
+	case "上传字幕到Bilibili":
+		return handlers.NewUploadSubtitleToBilibili("上传字幕到Bilibili", h.App, stateManager, h.App.CosClient, h.SavedVideoService), nil
+	default:
+		return nil, fmt.Errorf("未知的任务步骤: %s", stepName)
+	}
+}
+
 // wrapTaskWithStepTracking 包装任务以添加步骤跟踪
 func (h *ChainTaskHandler) wrapTaskWithStepTracking(task types.Task, videoID string) types.Task {
 	return &TaskStepWrapper{
@@ -421,8 +457,19 @@ func (w *TaskStepWrapper) UpdateStatus(status, message string) error {
 	return w.task.UpdateStatus(status, message)
 }
 
-func (w *TaskStepWrapper) Execute(context map[string]interface{}) bool {
+func (w *TaskStepWrapper) Execute(context map[string]interface{}) (success bool) {
 	stepName := w.task.GetName()
+	defer func() {
+		if r := recover(); r != nil {
+			errorMsg := fmt.Sprintf("任务执行异常: %v", r)
+			context["error"] = errorMsg
+			if err := w.taskStepService.UpdateTaskStepStatus(w.videoID, stepName, "failed", errorMsg); err != nil {
+				w.logger.Errorf("更新任务步骤异常状态失败: %v", err)
+			}
+			w.logger.Errorf("任务步骤 %s 执行异常: %v", stepName, r)
+			success = false
+		}
+	}()
 
 	// 更新步骤状态为运行中
 	if err := w.taskStepService.UpdateTaskStepStatus(w.videoID, stepName, "running"); err != nil {
@@ -430,7 +477,7 @@ func (w *TaskStepWrapper) Execute(context map[string]interface{}) bool {
 	}
 
 	// 执行原始任务
-	success := w.task.Execute(context)
+	success = w.task.Execute(context)
 
 	// 更新步骤状态
 	if success {
@@ -476,7 +523,7 @@ func (h *ChainTaskHandler) markVideoReadyForUploadIfPossible(savedVideo *model.S
 		return
 	}
 
-	for _, stepName := range []string{"下载视频", "生成元数据"} {
+	for _, stepName := range []string{"下载视频", "生成视频元数据"} {
 		step, err := h.TaskStepService.GetTaskStepByName(savedVideo.VideoID, stepName)
 		if err != nil || step.Status != model.TaskStepStatusCompleted {
 			return
