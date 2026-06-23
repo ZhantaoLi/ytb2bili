@@ -95,15 +95,14 @@ jobs:
           sha256sum *.zip *.tar.gz > checksums.txt
           cat checksums.txt
 
-      - name: Create Release
+      - name: Create or update release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
-          gh release create "$VERSION" \
-            --title "Release $VERSION" \
-            --notes "## 🚀 Release $VERSION
+          cat > release-notes.md <<EOF
+          ## 🚀 Release $VERSION
 
           ### 📦 下载
 
@@ -115,9 +114,9 @@ jobs:
 
           ### 📝 变更说明
 
-          - Fork from [@difyz9/ytb2bili](https://github.com/difyz9/ytb2bili)
-          - 完整功能保持不变
-          - 更新包路径为 github.com/ZhantaoLi/ytb2bili
+          - 更新 README 与 Docker 文档，修正当前运行方式和配置项
+          - 默认免费流程无需付费 API，外部模型/翻译 API 均需自行配置
+          - 增强发布产物，提供多平台二进制包和校验文件
 
           ### 🐳 Docker
 
@@ -127,7 +126,22 @@ jobs:
 
           ---
 
-          **完整文档**: [README.md](https://github.com/ZhantaoLi/ytb2bili/blob/main/README.md)" \
+          **完整文档**: [README.md](https://github.com/ZhantaoLi/ytb2bili/blob/main/README.md)
+          EOF
+
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists; updating notes and assets."
+            gh release edit "$VERSION" \
+              --title "Release $VERSION" \
+              --notes-file release-notes.md
+          else
+            echo "Release $VERSION does not exist; creating it."
+            gh release create "$VERSION" \
+              --title "Release $VERSION" \
+              --notes-file release-notes.md
+          fi
+
+          gh release upload "$VERSION" --clobber \
             dist/ytb2bili-windows-amd64.zip \
             dist/ytb2bili-linux-amd64.tar.gz \
             dist/ytb2bili-linux-arm64.tar.gz \
