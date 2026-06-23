@@ -38,9 +38,9 @@ export interface TaskProgress {
   total_steps: number;
   completed_steps: number;
   failed_steps: number;
-  progress_percentage: number;
+  progress_percent: number;
   current_step?: string;
-  is_running: boolean;
+  is_running?: boolean;
 }
 
 export interface VideoDetail {
@@ -52,7 +52,7 @@ export interface VideoDetail {
   created_at: string;
   updated_at: string;
   generated_title?: string;
-  generated_description?: string;
+  generated_desc?: string;
   generated_tags?: string;
   cover_image?: string;
   task_steps: TaskStep[];
@@ -64,8 +64,14 @@ export interface VideoFile {
   name: string;
   path: string;
   size: number;
-  type: 'video' | 'subtitle' | 'cover' | 'metadata' | 'other';
+  type: 'video' | 'subtitle' | 'image' | 'cover' | 'metadata' | 'audio' | 'other';
   created_at: string;
+}
+
+export interface VideoFilesResponse {
+  video_id: string;
+  directory: string;
+  files: VideoFile[];
 }
 
 export type TaskStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';

@@ -6,7 +6,7 @@ all: build
 # 项目路径
 ROOT_DIR := $(shell pwd)
 WEB_DIR := $(ROOT_DIR)/web
-OUT_DIR := $(WEB_DIR)/output
+OUT_DIR := $(WEB_DIR)/out
 TARGET_DIR := $(ROOT_DIR)/internal/web/bili-up-web
 BINARY_NAME := bili-up-api-server
 
@@ -70,7 +70,7 @@ build-web:
 	@echo "🔨 构建 Next.js 应用..."
 	@cd $(WEB_DIR) && \
 	export BACKEND_URL=$${BACKEND_URL:-http://localhost:8096} && \
-	npm run build
+	npm run build:prod
 	
 	@# Next.js 15+ 使用 output: 'export' 配置后，build 命令会自动导出到 out 目录
 	@# 检查导出结果

@@ -116,12 +116,6 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
           </button>
         </form>
 
-        {/* Default Credentials Hint */}
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-800 text-center">
-            <strong>默认账号：</strong> admin / admin123
-          </p>
-        </div>
       </div>
     </div>
   );

@@ -1,11 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import RootLayoutClient from "@/components/layout/RootLayoutClient";
 
 export const metadata: Metadata = {
   title: "YTB2BILI Web",
   description: "一个用于管理 Bilibili 视频上传和字幕处理的 Web 平台",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({

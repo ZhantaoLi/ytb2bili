@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { getApiBaseUrl, apiFetch } from '@/lib/api';
 import { CheckCircle, XCircle, Link2, ExternalLink, AlertCircle, Loader2, Clock, Info, ShieldCheck, Unlink, Star } from 'lucide-react';
@@ -284,9 +285,12 @@ export default function AccountsPage() {
                         <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full opacity-70 group-hover/avatar:opacity-100 transition duration-500 blur-sm"></div>
                         {account.avatar ? (
                           <div className="relative p-1 bg-white dark:bg-gray-800 rounded-full">
-                             <img 
-                               src={account.avatar} 
-                               alt={account.username} 
+                             <Image
+                               src={account.avatar}
+                               alt={account.username || `${account.name} 头像`}
+                               width={64}
+                               height={64}
+                               unoptimized
                                className="w-16 h-16 rounded-full object-cover shadow-sm border border-gray-100" 
                                onError={(e) => {
                                  e.currentTarget.style.display = 'none';

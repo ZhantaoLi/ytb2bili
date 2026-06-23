@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ArrowLeft, ExternalLink, RefreshCw, Download, Calendar, Clock, Image, FileText, Play, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, ExternalLink, RefreshCw, Download, Calendar, Clock, Image as ImageIcon, FileText, Play, Eye } from 'lucide-react';
 import { VideoDetail, VideoFile, TASK_STEP_NAMES } from '@/types';
-import { videoApi } from '@/lib/api';
+import { apiFetch, videoApi } from '@/lib/api';
 import TaskStepList from './TaskStepList';
 import StatusBadge from '@/components/ui/StatusBadge';
 import VideoActions from './VideoActions';
@@ -19,7 +19,7 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchVideoDetail = async (showRefreshing = false) => {
+  const fetchVideoDetail = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
     
@@ -38,7 +38,7 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [videoId]);
 
   useEffect(() => {
     fetchVideoDetail();
@@ -63,6 +63,36 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
     fetchVideoDetail(true);
   };
 
+  const openProtectedFile = async (path: string) => {
+    const targetWindow = window.open('', '_blank');
+    const apiPath = path.startsWith('/api/v1/') ? path.slice('/api/v1'.length) : path;
+    try {
+      const response = await apiFetch(apiPath, {
+        headers: {
+          Accept: '*/*',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`打开文件失败 (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      if (targetWindow) {
+        targetWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, '_blank');
+      }
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (err: any) {
+      if (targetWindow) {
+        targetWindow.close();
+      }
+      console.error('打开文件失败:', err);
+      alert(err.message || '打开文件失败，请稍后重试');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString('zh-CN', {
@@ -82,8 +112,9 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
         return <Play className={className} />;
       case 'subtitle':
         return <FileText className={className} />;
+      case 'image':
       case 'cover':
-        return <Image className={className} />;
+        return <ImageIcon className={className} />;
       default:
         return <FileText className={className} />;
     }
@@ -185,25 +216,24 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
                   <StatusBadge status={video.status} />
                   
                   {video.cover_image && (
-                    <a
-                      href={video.cover_image}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => openProtectedFile(video.cover_image!)}
                       className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
                     >
                       <Eye className="w-4 h-4" />
                       <span>查看封面</span>
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
 
               {/* 描述信息 */}
-              {video.generated_description && (
+              {video.generated_desc && (
                 <div className="mb-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-2">生成的描述</h3>
                   <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 whitespace-pre-wrap">
-                    {video.generated_description}
+                    {video.generated_desc}
                   </div>
                 </div>
               )}
@@ -266,12 +296,12 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
                 <div>
                   <div className="flex justify-between text-sm text-gray-600 mb-2">
                     <span>总体进度</span>
-                    <span>{video.progress.progress_percentage}%</span>
+                    <span>{video.progress.progress_percent}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${video.progress.progress_percentage}%` }}
+                      style={{ width: `${video.progress.progress_percent}%` }}
                     ></div>
                   </div>
                 </div>
@@ -330,7 +360,7 @@ export default function VideoDetailPage({ videoId, onBack }: VideoDetailPageProp
                       </div>
                       
                       <button
-                        onClick={() => window.open(file.path, '_blank')}
+                        onClick={() => openProtectedFile(file.path)}
                         className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                         title="下载文件"
                       >

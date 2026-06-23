@@ -1,10 +1,10 @@
 import axios from 'axios';
+import { shouldAttachAuthHeader } from './requestAuth.mjs';
 import type { 
   ApiResponse, 
   Video, 
   VideoDetail,
-  TaskStep,
-  VideoFile,
+  VideoFilesResponse,
   QRCodeResponse, 
   LoginStatus, 
   VideoSubmissionRequest,
@@ -118,7 +118,7 @@ export const videoApi = {
   },
 
   // 获取视频文件列表
-  getVideoFiles: (id: string): Promise<ApiResponse<VideoFile[]>> => {
+  getVideoFiles: (id: string): Promise<ApiResponse<VideoFilesResponse>> => {
     return api.get(`/videos/${id}/files`);
   },
 
@@ -163,14 +163,23 @@ export const subtitleApi = {
 export const apiFetch = async (endpoint: string, options?: RequestInit): Promise<Response> => {
   const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
-  
+  const headers = new Headers(options?.headers);
+
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  if (typeof window !== 'undefined' && shouldAttachAuthHeader(url, baseUrl, window.location.origin)) {
+    const token = localStorage.getItem('admin_token');
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+
   return fetch(url, {
     ...options,
-    credentials: 'include', // 支持跨域Cookie
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    credentials: 'include',
+    headers,
   });
 };
 

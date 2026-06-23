@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { RefreshCw, Clock, Play, CheckCircle, Upload, AlertCircle, Trash2, X } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 interface Video {
   id: number;
@@ -61,9 +62,8 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
     setIsDeleting(true);
     setDeleteError('');
     try {
-      const response = await fetch('/api/v1/videos/batch-delete', {
+      const response = await apiFetch('/videos/batch-delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [target.id] }),
       });
       const data = await response.json();
@@ -100,7 +100,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
   const fetchVideos = async () => {
     try {
       setRefreshing(true);
-      const response = await fetch('/api/v1/videos?page=1&limit=1000');
+      const response = await apiFetch('/videos?page=1&limit=1000');
       const data = await response.json();
       
       console.log('视频数据响应:', data); // 调试日志
@@ -131,7 +131,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
       setExpandedVideoId(videoId);
       setIsDetailLoading(true);
       try {
-        const response = await fetch(`/api/v1/videos/${videoId}`);
+        const response = await apiFetch(`/videos/${videoId}`);
         const data = await response.json();
         if (data.code === 200 || data.code === 0) {
           setDetailedVideo(data.data);
@@ -148,7 +148,7 @@ export default function TaskQueueStats({ onVideoSelect }: TaskQueueStatsProps) {
 
   const handleRetryStep = async (videoId: number, stepName: string) => {
     try {
-      const response = await fetch(`/api/v1/videos/${videoId}/steps/${stepName}/retry`, {
+      const response = await apiFetch(`/videos/${videoId}/steps/${stepName}/retry`, {
         method: 'POST',
       });
       const data = await response.json();

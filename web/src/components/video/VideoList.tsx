@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Play, RefreshCw, Trash2 } from 'lucide-react';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { apiFetch } from '@/lib/api';
 
 interface VideoListProps {
   onVideoSelect?: (videoId: string) => void;
@@ -17,7 +18,7 @@ export default function VideoList({ onVideoSelect }: VideoListProps) {
   const fetchVideos = async (pageNum = 1) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/v1/videos?page=${pageNum}&limit=10`);
+      const response = await apiFetch(`/videos?page=${pageNum}&limit=10`);
       const data = await response.json();
       
       if (data.code === 200) {
@@ -60,7 +61,7 @@ export default function VideoList({ onVideoSelect }: VideoListProps) {
     }
 
     try {
-      const response = await fetch(`/api/v1/videos/${videoId}`, {
+      const response = await apiFetch(`/videos/${videoId}`, {
         method: 'DELETE',
       });
 

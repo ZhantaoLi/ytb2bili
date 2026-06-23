@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle, Loader2, Trash2 } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 interface VideoActionsProps {
   videoId: string;
@@ -24,7 +25,7 @@ export default function VideoActions({ videoId, status, onSuccess }: VideoAction
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/v1/videos/${videoId}/upload/video`, {
+      const response = await apiFetch(`/videos/${videoId}/upload/video`, {
         method: 'POST',
       });
 
@@ -56,7 +57,7 @@ export default function VideoActions({ videoId, status, onSuccess }: VideoAction
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/v1/videos/${videoId}/upload/subtitle`, {
+      const response = await apiFetch(`/videos/${videoId}/upload/subtitle`, {
         method: 'POST',
       });
 
@@ -88,7 +89,7 @@ export default function VideoActions({ videoId, status, onSuccess }: VideoAction
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/v1/videos/${videoId}`, {
+      const response = await apiFetch(`/videos/${videoId}`, {
         method: 'DELETE',
       });
 

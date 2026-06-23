@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 export default function SettingsPage() {
   const [autoUpload, setAutoUpload] = useState(false);
@@ -13,7 +14,7 @@ export default function SettingsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/v1/config/auto-upload');
+        const res = await apiFetch('/config/auto-upload');
         const data = await res.json();
         if (data.code === 200 && data.data) {
           setAutoUpload(!!data.data.enabled);
@@ -35,9 +36,8 @@ export default function SettingsPage() {
     const prev = autoUpload;
     setAutoUpload(next); // 乐观更新
     try {
-      const res = await fetch('/api/v1/config/auto-upload', {
+      const res = await apiFetch('/config/auto-upload', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: next }),
       });
       const data = await res.json();

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Upload, Link, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 interface VideoSubmissionFormProps {
   onSubmit?: (data: any) => void;
@@ -78,17 +79,14 @@ export default function VideoSubmissionForm({ onSubmit }: VideoSubmissionFormPro
     setLoading(true);
     
     try {
-      const response = await fetch('/api/v1/submit', {
+      const response = await apiFetch('/submit', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(formData),
       });
 
       const result = await response.json();
       
-      if (result.code === 200) {
+      if (result.success || result.code === 200) {
         alert('视频提交成功！');
         if (onSubmit) {
           onSubmit(result.data);

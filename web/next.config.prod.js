@@ -7,10 +7,8 @@ const nextConfig = {
   // 静态导出配置 - 用于生产构建
   output: 'export',
   trailingSlash: true,
-  images: {
-    unoptimized: true
-  },
   distDir: 'out',
+  outputFileTracingRoot: __dirname,
   
   // 基础路径配置（如果需要部署到子路径）
   // basePath: '/static',
