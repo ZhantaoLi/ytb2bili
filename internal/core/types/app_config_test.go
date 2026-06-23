@@ -129,8 +129,38 @@ endpoint = "https://example.test/translate"
 	if config.DataPath != "./data" {
 		t.Fatalf("DataPath = %q, want ./data", config.DataPath)
 	}
-	if config.Database.Type != "postgres" {
-		t.Fatalf("Database.Type = %q, want postgres", config.Database.Type)
+	if config.FileUpDir != "./data" {
+		t.Fatalf("FileUpDir = %q, want ./data", config.FileUpDir)
+	}
+	if config.Database.Type != "sqlite" {
+		t.Fatalf("Database.Type = %q, want sqlite", config.Database.Type)
+	}
+	if config.Database.Database != filepath.Join("data", "ytb2bili.db") {
+		t.Fatalf("Database.Database = %q, want %q", config.Database.Database, filepath.Join("data", "ytb2bili.db"))
+	}
+}
+
+func TestExampleConfigLoadsWithSQLiteDefaults(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to resolve current test file")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".."))
+	configPath := filepath.Join(repoRoot, "config.toml.example")
+
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadConfig(config.toml.example) returned error: %v", err)
+	}
+
+	if config.Database.Type != "sqlite" {
+		t.Fatalf("Database.Type = %q, want sqlite", config.Database.Type)
+	}
+	if filepath.ToSlash(config.Database.GetDSN()) != "data/ytb2bili.db" {
+		t.Fatalf("Database DSN = %q, want data/ytb2bili.db", config.Database.GetDSN())
+	}
+	if config.AutoUpload {
+		t.Fatal("AutoUpload = true, want false in release example config")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
@@ -121,7 +122,7 @@ func (d Database) GetDSN() string {
 		}
 		// 否则使用 database 作为文件名，存储在当前目录
 		if d.Database == "" {
-			d.Database = "bili_up.db"
+			d.Database = filepath.Join("data", "ytb2bili.db")
 		}
 		return d.Database
 	default:
@@ -220,16 +221,13 @@ func NewDefaultConfig() *AppConfig {
 		Listen:      ":8096",
 		Environment: "development",
 		Debug:       true,
+		FileUpDir:   "./data", // 默认任务文件目录
 		DataPath:    "./data", // 默认数据存储路径
-		AutoUpload:  false,    // 默认关闭自动上传：视频准备到就绪态后停在 200，由用户手动上传
+		YtDlpPath:   "",
+		AutoUpload:  false, // 默认关闭自动上传：视频准备到就绪态后停在 200，由用户手动上传
 		Database: Database{
-			Type:     "postgres",
-			Host:     "localhost",
-			Port:     5432,
-			Username: "postgres",
-			Password: "password",
-			Database: "bili_up_db",
-			SSLMode:  "disable",
+			Type:     "sqlite",
+			Database: filepath.Join("data", "ytb2bili.db"),
 			Timezone: "Asia/Shanghai",
 		},
 

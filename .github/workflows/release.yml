@@ -64,27 +64,46 @@ jobs:
         run: |
           cd dist
 
-          # Windows - 直接打包 exe
-          zip ytb2bili-windows-amd64.zip ytb2bili-windows-amd64.exe
+          mkdir -p package/ytb2bili-windows-amd64
+          cp ytb2bili-windows-amd64.exe package/ytb2bili-windows-amd64/ytb2bili.exe
+          cp ../config.toml.example package/ytb2bili-windows-amd64/config.toml
+          cp ../config.toml.example package/ytb2bili-windows-amd64/config.toml.example
+          cp ../release/README.txt package/ytb2bili-windows-amd64/README.txt
+          (
+            cd package/ytb2bili-windows-amd64
+            zip -r ../../ytb2bili-windows-amd64.zip .
+          )
 
           # Linux amd64
           mkdir -p package/ytb2bili-linux-amd64
           cp ytb2bili-linux-amd64 package/ytb2bili-linux-amd64/
+          cp ../config.toml.example package/ytb2bili-linux-amd64/config.toml
+          cp ../config.toml.example package/ytb2bili-linux-amd64/config.toml.example
+          cp ../release/README.txt package/ytb2bili-linux-amd64/README.txt
           tar czf ytb2bili-linux-amd64.tar.gz -C package ytb2bili-linux-amd64
 
           # Linux arm64
           mkdir -p package/ytb2bili-linux-arm64
           cp ytb2bili-linux-arm64 package/ytb2bili-linux-arm64/
+          cp ../config.toml.example package/ytb2bili-linux-arm64/config.toml
+          cp ../config.toml.example package/ytb2bili-linux-arm64/config.toml.example
+          cp ../release/README.txt package/ytb2bili-linux-arm64/README.txt
           tar czf ytb2bili-linux-arm64.tar.gz -C package ytb2bili-linux-arm64
 
           # macOS amd64
           mkdir -p package/ytb2bili-darwin-amd64
           cp ytb2bili-darwin-amd64 package/ytb2bili-darwin-amd64/
+          cp ../config.toml.example package/ytb2bili-darwin-amd64/config.toml
+          cp ../config.toml.example package/ytb2bili-darwin-amd64/config.toml.example
+          cp ../release/README.txt package/ytb2bili-darwin-amd64/README.txt
           tar czf ytb2bili-darwin-amd64.tar.gz -C package ytb2bili-darwin-amd64
 
           # macOS arm64
           mkdir -p package/ytb2bili-darwin-arm64
           cp ytb2bili-darwin-arm64 package/ytb2bili-darwin-arm64/
+          cp ../config.toml.example package/ytb2bili-darwin-arm64/config.toml
+          cp ../config.toml.example package/ytb2bili-darwin-arm64/config.toml.example
+          cp ../release/README.txt package/ytb2bili-darwin-arm64/README.txt
           tar czf ytb2bili-darwin-arm64.tar.gz -C package ytb2bili-darwin-arm64
 
           ls -lh *.zip *.tar.gz

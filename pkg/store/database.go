@@ -2,14 +2,17 @@ package store
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
+	"github.com/glebarez/sqlite"
 	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -49,6 +52,9 @@ func NewDatabase(config *types.AppConfig) (*gorm.DB, error) {
 		}
 	case "sqlite", "sqlite3":
 		dsn := config.Database.GetDSN()
+		if err := ensureSQLiteParentDir(dsn); err != nil {
+			return nil, fmt.Errorf("failed to prepare SQLite path: %w", err)
+		}
 		db, err = gorm.Open(sqlite.Open(dsn), gormConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to SQLite: %w", err)
@@ -76,6 +82,31 @@ func gormLogLevel(debug bool) logger.LogLevel {
 		return logger.Warn
 	}
 	return logger.Silent
+}
+
+func ensureSQLiteParentDir(dsn string) error {
+	if dsn == "" || dsn == ":memory:" || strings.Contains(dsn, "mode=memory") || strings.Contains(dsn, "::memory:") {
+		return nil
+	}
+
+	path := dsn
+	if strings.HasPrefix(path, "file:") {
+		path = strings.TrimPrefix(path, "file:")
+		if idx := strings.IndexAny(path, "?#"); idx >= 0 {
+			path = path[:idx]
+		}
+	}
+
+	if path == "" || path == "." || path == ":memory:" {
+		return nil
+	}
+
+	dir := filepath.Dir(filepath.FromSlash(path))
+	if dir == "" || dir == "." {
+		return nil
+	}
+
+	return os.MkdirAll(dir, 0o755)
 }
 
 // AutoMigrate 自动迁移数据库表

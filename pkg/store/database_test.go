@@ -1,6 +1,7 @@
 package store
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -31,6 +32,31 @@ func TestNewDatabaseSupportsSQLite(t *testing.T) {
 	}
 	if err := sqlDB.Close(); err != nil {
 		t.Fatalf("failed to close SQLite database: %v", err)
+	}
+}
+
+func TestNewDatabaseCreatesSQLiteParentDirectory(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "nested", "data", "ytb2bili.db")
+	config := types.NewDefaultConfig()
+	config.Debug = false
+	config.Database = types.Database{
+		Type:     "sqlite",
+		Database: dbPath,
+	}
+
+	db, err := NewDatabase(config)
+	if err != nil {
+		t.Fatalf("NewDatabase() with nested sqlite path returned error: %v", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("db.DB() returned error: %v", err)
+	}
+	defer sqlDB.Close()
+
+	if _, err := os.Stat(dbPath); err != nil {
+		t.Fatalf("expected sqlite file to exist at %q: %v", dbPath, err)
 	}
 }
 

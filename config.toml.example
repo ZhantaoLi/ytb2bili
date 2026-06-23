@@ -1,105 +1,47 @@
-# ytb2bili 配置文件示例（TOML格式）
-# 复制此文件为 config.toml 并根据实际情况修改
-# 注意：环境变量会覆盖此文件中的配置
+# ytb2bili runtime config example
+# Copy to config.toml and edit only the fields you actually need.
 
-# ============================================================================
-# 应用基础配置
-# ============================================================================
-
-[server]
-host = "0.0.0.0"           # 服务监听地址，0.0.0.0 表示监听所有网卡
-port = 5688                # 服务端口
-static_dir = "./downloads" # 静态文件目录（视频、字幕等）
-static_path = "/static"    # 静态文件访问路径前缀
-
-
-# ============================================================================
-# 数据库配置
-# ============================================================================
-[database]
-type = "sqlite"             # 数据库类型: sqlite, mysql, postgresql
-path = "ytb2bili.db"        # SQLite 数据库文件路径
-auto_migrate = true         # 是否自动迁移数据库表结构
-table_prefix = ""           # 表名前缀（可选）
-
-# MySQL 配置示例（取消注释并修改以使用 MySQL）
-# type = "mysql"
-# host = "127.0.0.1"
-# port = 3306
-# user = "root"
-# password = "your_password"
-# dbname = "ytb2ibili"
-# timezone = "Asia/Shanghai"
-
-# PostgreSQL 配置示例（取消注释并修改以使用 PostgreSQL）
-# type = "postgresql"
-# host = "127.0.0.1"
-# port = 5432
-# user = "postgres"
-# password = "your_password"
-# dbname = "ytb2bili"
-# sslmode = "disable"
-# timezone = "UTC"
-
-# ============================================================================
-# 视频处理工作流配置
-# ============================================================================
-[workflow]
-download_dir = "./downloads"  # 视频下载目录（必需，应与 server.static_dir 保持一致）
-
-# yt-dlp 可执行文件路径（可选，默认从 PATH 查找）
-ytdlp_path = "/usr/local/bin/yt-dlp"
-
-# ffmpeg 可执行文件路径（可选，默认从 PATH 查找）
-ffmpeg_path = "/usr/local/bin/ffmpeg"
-
-# 自动上传开关（默认关闭）
-# false = 视频处理到就绪态（status=200）后停止，需手动上传
-# true  = 调度器每 5 分钟自动上传就绪态视频到 Bilibili
+listen = ":8096"
+environment = "development"
+debug = true
+fileUpDir = "./data"
+data_path = "./data"
+yt_dlp_path = ""
 auto_upload = false
+primary_ai_service = ""
 
+[database]
+type = "sqlite"
+database = "data/ytb2bili.db"
+timezone = "Asia/Shanghai"
 
-# 微软语音服务配置（可选，用于旧版翻译功能）
-# speech_key = "your_azure_speech_key"
-# speech_region = "eastasia"
+[auth]
+jwt_secret = ""
+jwt_expiration = 24
+session_secret = "change-this-session-secret"
 
-# LLM 翻译配置（默认关闭，免费流程直接保留原始字幕）
-llm_translation_enabled = false      # 是否启用本地 LLM 批量翻译
-llm_translation_batch_size = 25      # 批量翻译每批句子数
-llm_translation_max_workers = 3      # 并发工作者数量
-llm_translation_context_size = 2     # 上下文窗口大小
-llm_translation_source_lang = "en"   # 源语言代码
-llm_translation_target_lang = "zh-Hans"  # 目标语言代码
+[api_auth]
+app_id = ""
+app_secret = ""
+cookies_decrypt_key = ""
 
-# TTS 字幕音频合成配置（默认关闭，免费流程不依赖外部语音服务）
-tts_enabled = false  # 是否启用字幕音频合成
+[ProxyConfig]
+use_proxy = false
+proxy_host = "http://127.0.0.1:10809"
 
-# ============================================================================
-# Agent & LLM 配置（可选，仅用于自行配置的 API 或本地兼容接口）
-# 默认免费流程不需要 API；如需启用，请自行配置 base_url、model、api_key。
-# ============================================================================
-[agent]
-name = "ytb2bili_agent"  # Agent 名称
+[WhisperConfig]
+enabled = true
+language = "en"
+model_path = ""
+threads = 0
 
-[agent.llm]
-provider = "local"                       # 自行配置的本地兼容接口
-api_key = "local"                        # 本地服务通常不校验，可保持 local；外部 API 请自行填写
-model = "qwen2.5:7b"                     # 本地模型名称，按实际安装调整
-base_url = "http://127.0.0.1:11434/v1"   # 本地 Ollama/OpenAI 兼容端点
-
-# 字幕翻译 API（可选，默认关闭）
-# DeepLX 适合直接翻译字幕句子；endpoint 必须由使用者自行填写完整 /translate 地址。
 [DeepLXConfig]
-# Default subtitle translation uses free Bing first, then Google fallback.
-# Enable this section only when you want to override the free translator.
 enabled = false
 endpoint = ""
 source_lang = "EN"
 target_lang = "ZH"
 timeout = 30
 
-# OpenAI 兼容翻译接口（可选，默认关闭）
-# 可配置本地 Ollama/new-api/one-api 或其他兼容 /v1/chat/completions 的服务。
 [OpenAICompatibleConfig]
 enabled = false
 provider = "local"
@@ -110,36 +52,52 @@ timeout = 60
 max_tokens = 4000
 temperature = 0.7
 
-# 代理配置（可选，用于 yt-dlp 下载、字幕获取等网络请求）
-# use_proxy=true 时，proxy_host 会传给 yt-dlp 的 --proxy，并用于部分 HTTP 客户端。
-[ProxyConfig]
-use_proxy = false
-proxy_host = "http://127.0.0.1:10809"
+[DeepSeekTransConfig]
+enabled = false
+api_key = ""
+models = "deepseek-chat"
+endpoint = "https://api.deepseek.com"
+timeout = 60
+max_tokens = 4000
 
-# ============================================================================
-# 自动更新配置
-# ============================================================================
-[updater]
-enabled = true         # 是否启用更新检查
-auto_update = false    # 是否自动更新（建议设为 false，手动更新更安全）
-check_interval = 24    # 检查更新间隔（小时），0 表示禁用
-# update_url = "https://api.github.com/repos/zolagz/ytb2bili/releases/latest"
-# current_version = "0.0.1"
+[GeminiConfig]
+enabled = false
+api_key = ""
+model = "gemini-2.5-flash"
+timeout = 120
+max_tokens = 8000
+use_for_metadata = false
+analyze_video = true
+video_sample_frames = 0
 
-# ============================================================================
-# TTS 服务配置（默认不用，免费流程可忽略）
-# ============================================================================
-[tts]
-# base_url = "http://127.0.0.1:5002"
+[BilibiliConfig]
+copyright = 1
+source = ""
+no_reprint = 1
+use_original_title = true
+use_original_desc = true
+custom_title_template = ""
+custom_desc_template = ""
+tid = 122
+dynamic = "发布了新视频！"
+open_elec = 0
+selection_reserve = 0
+up_selection_reply = 0
+up_close_reply = 0
+up_close_reward = 1
 
-# ============================================================================
-# 腾讯云 COS 存储配置（可选，用于云端存储）
-# ============================================================================
-[tencos]
-enabled = false  # 是否启用腾讯云 COS 存储
-# cos_bucket_url = "https://your-bucket.cos.ap-guangzhou.myqcloud.com"
-# cos_secret_id = "your_secret_id"
-# cos_secret_key = "your_secret_key"
-# cos_region = "ap-guangzhou"
-# cos_bucket = "your-bucket-name"
-# sub_app_id = "your_app_id"
+[TenCosConfig]
+enabled = false
+cos_bucket_url = ""
+cos_secret_id = ""
+cos_secret_key = ""
+cos_region = ""
+cos_bucket = ""
+sub_app_id = ""
+
+[AnalyticsConfig]
+enabled = false
+server_url = "http://localhost:8080"
+api_key = ""
+product_id = "bili-up-api"
+debug = false
