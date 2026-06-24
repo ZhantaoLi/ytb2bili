@@ -39,7 +39,10 @@ func TestAppendYtDlpRuntimeArgsUsesNodeWhenAvailable(t *testing.T) {
 	got := appendYtDlpRuntimeArgs(args, lookPath)
 	joined := strings.Join(got, " ")
 
-	if !strings.Contains(joined, "--js-runtimes node:D:\\ProgramData\\nodejs\\node.exe") {
+	if strings.Contains(joined, "--js-runtimes") {
+		t.Fatalf("yt-dlp args should not use removed plural js runtime option, got %q", joined)
+	}
+	if !strings.Contains(joined, "--js-runtime node:D:\\ProgramData\\nodejs\\node.exe") {
 		t.Fatalf("yt-dlp args should include node js runtime, got %q", joined)
 	}
 }
