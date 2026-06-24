@@ -28,6 +28,13 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
       - name: Get version
         id: version
         run: |
@@ -35,6 +42,19 @@ jobs:
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build frontend assets
+        run: |
+          cd web
+          npm ci
+          npm run build:prod
+          cd ..
+          rm -rf internal/web/bili-up-web
+          mkdir -p internal/web/bili-up-web
+          cp -a web/out/. internal/web/bili-up-web/
+          if [ -d web/public ]; then
+            cp -a web/public/. internal/web/bili-up-web/
           fi
 
       - name: Build binaries
@@ -133,9 +153,9 @@ jobs:
 
           ### 📝 变更说明
 
-          - 更新 README 文档，修正当前运行方式和配置项
+          - 支持浏览器首次启动向导创建本地管理员
           - 默认免费流程无需付费 API，外部模型/翻译 API 均需自行配置
-          - 增强发布产物，提供多平台二进制包和校验文件
+          - 发布包会重建并嵌入最新前端静态资源
 
           ---
 
