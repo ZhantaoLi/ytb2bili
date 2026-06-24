@@ -52,8 +52,8 @@ func TestRefreshMetadataUpdatesOriginalAndGeneratedMetadata(t *testing.T) {
 
 	summary, err := refreshMetadata(app, savedVideoService, video, stateManager, func() (*handlers.VideoMetadataInfo, error) {
 		return &handlers.VideoMetadataInfo{
-			Title:       "GLM 5.2 vs Claude Was Crazy",
-			Description: "Reference YouTube description",
+			Title:       "GLM 5.2 对比 Claude 简直疯狂",
+			Description: "参考 YouTube 简介",
 		}, nil
 	})
 	if err != nil {
@@ -68,10 +68,10 @@ func TestRefreshMetadataUpdatesOriginalAndGeneratedMetadata(t *testing.T) {
 	if err := db.First(&stored, video.ID).Error; err != nil {
 		t.Fatalf("load stored video: %v", err)
 	}
-	if stored.Title != "GLM 5.2 vs Claude Was Crazy" {
+	if stored.Title != "GLM 5.2 对比 Claude 简直疯狂" {
 		t.Fatalf("title = %q, want refreshed original title", stored.Title)
 	}
-	if stored.Description != "Reference YouTube description" {
+	if stored.Description != "参考 YouTube 简介" {
 		t.Fatalf("description = %q, want refreshed original description", stored.Description)
 	}
 	if stored.GeneratedTitle != stored.Title {

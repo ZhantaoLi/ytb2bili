@@ -378,31 +378,21 @@ func (t *UploadToBilibili) buildStudioInfo(video *bilibili.Video, coverURL strin
 
 		// 根据配置选择标题来源
 		biliConfig := t.App.Config.BilibiliConfig
+		generatedTitle := strings.TrimSpace(savedVideo.GeneratedTitle)
+		cleanedOriginalTitle := cleanTitle(savedVideo.Title)
 		if biliConfig != nil && biliConfig.CustomTitleTemplate != "" {
 			// 使用自定义标题模板
 			title = biliConfig.CustomTitleTemplate
-			// 清理原标题中的标签
-			cleanedOriginalTitle := cleanTitle(savedVideo.Title)
 			title = strings.ReplaceAll(title, "{original_title}", cleanedOriginalTitle)
-			title = strings.ReplaceAll(title, "{ai_title}", savedVideo.GeneratedTitle)
+			title = strings.ReplaceAll(title, "{ai_title}", generatedTitle)
 			t.App.Logger.Infof("✓ 使用自定义标题模板: %s", title)
-		} else if biliConfig != nil && !biliConfig.UseOriginalTitle {
-			// 配置为使用AI生成标题
-			if savedVideo.GeneratedTitle != "" {
-				title = savedVideo.GeneratedTitle
-				t.App.Logger.Infof("✓ 使用AI生成的标题: %s", title)
-			} else if savedVideo.Title != "" {
-				title = cleanTitle(savedVideo.Title)
-				t.App.Logger.Infof("✓ AI标题不存在，回退使用原始标题（已清理标签）: %s", title)
-			}
+		} else if generatedTitle != "" {
+			title = generatedTitle
+			t.App.Logger.Infof("✓ 使用生成/翻译后的标题: %s", title)
 		} else {
-			// 默认使用原始标题（YouTube原标题）
-			if savedVideo.Title != "" {
-				title = cleanTitle(savedVideo.Title)
-				t.App.Logger.Infof("✓ 使用YouTube原始标题（已清理标签）: %s", title)
-			} else if savedVideo.GeneratedTitle != "" {
-				title = savedVideo.GeneratedTitle
-				t.App.Logger.Infof("✓ 原始标题不存在，回退使用AI标题: %s", title)
+			if cleanedOriginalTitle != "" {
+				title = cleanedOriginalTitle
+				t.App.Logger.Infof("✓ 生成标题不存在，回退使用原始标题（已清理标签）: %s", title)
 			}
 		}
 
@@ -436,20 +426,21 @@ func (t *UploadToBilibili) buildStudioInfo(video *bilibili.Video, coverURL strin
 		}
 
 		// 根据配置选择描述来源
+		generatedDesc := strings.TrimSpace(savedVideo.GeneratedDesc)
 		if biliConfig != nil && biliConfig.CustomDescTemplate != "" {
 			// 使用自定义模板
 			desc = biliConfig.CustomDescTemplate
 			desc = strings.ReplaceAll(desc, "{original_desc}", savedVideo.Description)
-			desc = strings.ReplaceAll(desc, "{ai_desc}", savedVideo.GeneratedDesc)
+			desc = strings.ReplaceAll(desc, "{ai_desc}", generatedDesc)
 			t.App.Logger.Infof("✓ 使用自定义描述模板")
+		} else if generatedDesc != "" {
+			desc = generatedDesc
+			t.App.Logger.Infof("✓ 使用生成/翻译后的简介")
 		} else if biliConfig != nil && biliConfig.UseOriginalDesc {
 			// 配置为使用原始描述
 			if isValidDescription(savedVideo.Description) {
 				desc = savedVideo.Description
 				t.App.Logger.Infof("✓ 使用YouTube原始描述")
-			} else if savedVideo.GeneratedDesc != "" {
-				desc = savedVideo.GeneratedDesc
-				t.App.Logger.Infof("✓ 原始描述无效，回退使用AI描述")
 			} else {
 				desc = ""
 				t.App.Logger.Info("✓ 无有效描述，仅使用原视频链接")
@@ -460,8 +451,8 @@ func (t *UploadToBilibili) buildStudioInfo(video *bilibili.Video, coverURL strin
 			originalDesc := ""
 
 			// 获取AI生成的精炼介绍（100字以内）
-			if savedVideo.GeneratedDesc != "" {
-				aiIntro = savedVideo.GeneratedDesc
+			if generatedDesc != "" {
+				aiIntro = generatedDesc
 				t.App.Logger.Infof("✓ AI生成的精炼介绍: %s", aiIntro)
 			}
 

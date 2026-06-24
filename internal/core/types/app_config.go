@@ -310,8 +310,8 @@ func NewDefaultConfig() *AppConfig {
 			Copyright:          1, // 默认自制
 			Source:             "",
 			NoReprint:          1,         // 默认禁止转载
-			UseOriginalTitle:   true,      // 默认使用原视频标题
-			UseOriginalDesc:    true,      // 默认使用原视频描述，避免依赖云端AI
+			UseOriginalTitle:   false,     // 默认使用生成/翻译后的中文标题
+			UseOriginalDesc:    false,     // 默认使用生成/翻译后的中文简介
 			CustomDescTemplate: "",        // 默认不使用自定义模板
 			Tid:                122,       // 默认分区：日常
 			Dynamic:            "发布了新视频！", // 默认动态

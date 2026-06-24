@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
@@ -12,6 +13,7 @@ import (
 	"github.com/ZhantaoLi/ytb2bili/internal/core/services"
 	"github.com/ZhantaoLi/ytb2bili/internal/core/types"
 	"github.com/ZhantaoLi/ytb2bili/pkg/store/model"
+	"github.com/difyz9/bilibili-go-sdk/bilibili"
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -79,6 +81,58 @@ func TestFetchAndSaveMetadataParsesYtDlpWarnings(t *testing.T) {
 	}
 	if stored.Description != "reference metadata" {
 		t.Fatalf("description = %q, want parsed yt-dlp description", stored.Description)
+	}
+}
+
+func TestBuildStudioInfoPrefersGeneratedChineseMetadata(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(&model.SavedVideo{}); err != nil {
+		t.Fatalf("migrate db: %v", err)
+	}
+
+	video := &model.SavedVideo{
+		VideoID:        "generated-meta-video",
+		Title:          "Sudden thunderstorm mountain camping",
+		Description:    "Foreign original description",
+		GeneratedTitle: "山中雷雨木屋卡车露营",
+		GeneratedDesc:  "本视频记录一次山中露营旅行。",
+		GeneratedTags:  "露营,旅行,ASMR",
+		Status:         "200",
+	}
+	if err := db.Create(video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+
+	cfg := types.NewDefaultConfig()
+	cfg.BilibiliConfig.UseOriginalTitle = true
+	cfg.BilibiliConfig.UseOriginalDesc = true
+
+	task := &UploadToBilibili{
+		BaseTask: base.BaseTask{
+			StateManager: &manager.StateManager{
+				VideoID:    video.VideoID,
+				CurrentDir: t.TempDir(),
+			},
+		},
+		App:               &core.AppServer{Config: cfg, Logger: zap.NewNop().Sugar()},
+		SavedVideoService: services.NewSavedVideoService(db),
+	}
+
+	studio := task.buildStudioInfo(&bilibili.Video{Title: "part-1"}, "", map[string]interface{}{})
+	if studio.Title != video.GeneratedTitle {
+		t.Fatalf("studio title = %q, want generated Chinese title %q", studio.Title, video.GeneratedTitle)
+	}
+	if !strings.Contains(studio.Desc, video.GeneratedDesc) {
+		t.Fatalf("studio desc = %q, want generated Chinese description", studio.Desc)
+	}
+	if strings.Contains(studio.Desc, video.Description) {
+		t.Fatalf("studio desc should not include untranslated original description: %q", studio.Desc)
+	}
+	if studio.Tag != video.GeneratedTags {
+		t.Fatalf("studio tags = %q, want %q", studio.Tag, video.GeneratedTags)
 	}
 }
 

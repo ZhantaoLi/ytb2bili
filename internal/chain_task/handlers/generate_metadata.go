@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/base"
 	"github.com/ZhantaoLi/ytb2bili/internal/chain_task/manager"
@@ -58,6 +60,24 @@ type VideoMetadata struct {
 	Tags        []string `json:"tags"`
 }
 
+var metadataHashtagPattern = regexp.MustCompile(`#([^\s#，,。.；;：:！!？?、]+)`)
+
+var metadataTagAliases = map[string]string{
+	"camping":  "露营",
+	"travel":   "旅行",
+	"trip":     "旅行",
+	"painting": "绘画",
+	"drawing":  "绘画",
+	"art":      "绘画",
+	"rain":     "雨天",
+	"rainy":    "雨天",
+	"asmr":     "ASMR",
+	"캠핑":       "露营",
+	"여행":       "旅行",
+	"그림":       "绘画",
+	"우중캠핑":     "雨中露营",
+}
+
 func (g *GenerateMetadata) Execute(context map[string]interface{}) bool {
 	g.App.Logger.Info("========================================")
 	g.App.Logger.Infof("开始生成视频标题和描述: VideoID=%s", g.StateManager.VideoID)
@@ -106,18 +126,214 @@ func (g *GenerateMetadata) executeWithFreeFallback(context map[string]interface{
 		Description: "自动上传的视频",
 		Tags:        []string{"视频"},
 	}
+	hasSourceMetadata := false
 	if g.SavedVideoService != nil {
 		if savedVideo, err := g.SavedVideoService.GetVideoByVideoID(g.StateManager.VideoID); err == nil && savedVideo != nil {
 			if title := strings.TrimSpace(savedVideo.Title); title != "" {
 				metadata.Title = title
+				hasSourceMetadata = true
 			}
 			if desc := strings.TrimSpace(savedVideo.Description); desc != "" {
 				metadata.Description = desc
+				hasSourceMetadata = true
 			}
 		}
 	}
 
+	if hasSourceMetadata {
+		metadata = g.localizeMetadataForBilibili(metadata)
+	}
+
 	return g.saveMetadataResults(metadata, context)
+}
+
+func (g *GenerateMetadata) localizeMetadataForBilibili(metadata *VideoMetadata) *VideoMetadata {
+	if metadata == nil {
+		return &VideoMetadata{
+			Title:       g.StateManager.VideoID,
+			Description: "自动上传的视频",
+			Tags:        []string{"视频"},
+		}
+	}
+
+	localized := *metadata
+	translator := &TranslateSubtitle{App: g.App}
+
+	localized.Title = g.translateMetadataText(translator, localized.Title, "标题")
+	localized.Description = g.translateMetadataText(translator, cleanMetadataDescriptionForTranslation(localized.Description), "简介")
+	localized.Tags = g.localizeMetadataTags(translator, metadata)
+
+	if strings.TrimSpace(localized.Title) == "" {
+		localized.Title = g.StateManager.VideoID
+	}
+	if strings.TrimSpace(localized.Description) == "" {
+		localized.Description = "自动上传的视频"
+	}
+	if len(localized.Tags) == 0 {
+		localized.Tags = []string{"视频"}
+	}
+
+	return &localized
+}
+
+func (g *GenerateMetadata) translateMetadataText(translator *TranslateSubtitle, text, fieldName string) string {
+	text = strings.TrimSpace(text)
+	if text == "" || !needsMetadataTranslation(text) {
+		return text
+	}
+
+	translated, err := translator.translateGroupWithFreeProviders([]string{text})
+	if err != nil || len(translated) == 0 || strings.TrimSpace(translated[0]) == "" {
+		if g.App != nil && g.App.Logger != nil {
+			g.App.Logger.Warnf("免费元数据%s翻译失败，保留原文: %v", fieldName, err)
+		}
+		return text
+	}
+
+	return strings.TrimSpace(translated[0])
+}
+
+func (g *GenerateMetadata) localizeMetadataTags(translator *TranslateSubtitle, metadata *VideoMetadata) []string {
+	candidates := metadataTagCandidates(metadata)
+	tags := make([]string, 0, 5)
+	seen := map[string]struct{}{}
+
+	for _, candidate := range candidates {
+		tagText := candidate
+		if alias, ok := metadataTagAlias(tagText); ok {
+			tagText = alias
+		} else if needsMetadataTranslation(tagText) {
+			tagText = g.translateMetadataText(translator, tagText, "标签")
+		}
+
+		for _, tag := range splitMetadataTags(tagText) {
+			tag = normalizeMetadataTag(tag)
+			if tag == "" {
+				continue
+			}
+			if _, exists := seen[tag]; exists {
+				continue
+			}
+			seen[tag] = struct{}{}
+			tags = append(tags, tag)
+			if len(tags) >= 5 {
+				return tags
+			}
+		}
+	}
+
+	if len(tags) == 0 {
+		return []string{"视频"}
+	}
+	return tags
+}
+
+func metadataTagCandidates(metadata *VideoMetadata) []string {
+	if metadata == nil {
+		return nil
+	}
+
+	var candidates []string
+	for _, tag := range metadata.Tags {
+		tag = normalizeMetadataTag(tag)
+		if tag != "" && tag != "视频" {
+			candidates = append(candidates, tag)
+		}
+	}
+
+	for _, text := range []string{metadata.Title, metadata.Description} {
+		for _, match := range metadataHashtagPattern.FindAllStringSubmatch(text, -1) {
+			if len(match) > 1 {
+				tag := normalizeMetadataTag(match[1])
+				if tag != "" && tag != "视频" {
+					candidates = append(candidates, tag)
+				}
+			}
+		}
+	}
+
+	return candidates
+}
+
+func cleanMetadataDescriptionForTranslation(description string) string {
+	lines := strings.Split(description, "\n")
+	start := 0
+	for start < len(lines) {
+		line := strings.TrimSpace(lines[start])
+		if line == "" {
+			start++
+			continue
+		}
+		if !isPureHashtagLine(line) {
+			break
+		}
+		start++
+	}
+
+	return strings.TrimSpace(strings.Join(lines[start:], "\n"))
+}
+
+func isPureHashtagLine(line string) bool {
+	line = strings.TrimSpace(line)
+	if line == "" || !strings.Contains(line, "#") {
+		return false
+	}
+
+	withoutTags := metadataHashtagPattern.ReplaceAllString(line, "")
+	withoutTags = strings.TrimSpace(withoutTags)
+	withoutTags = strings.Trim(withoutTags, "，,。.；;：:！!？?、|/-_")
+	return withoutTags == ""
+}
+
+func metadataTagAlias(tag string) (string, bool) {
+	key := strings.ToLower(normalizeMetadataTag(tag))
+	value, ok := metadataTagAliases[key]
+	return value, ok
+}
+
+func splitMetadataTags(text string) []string {
+	return strings.FieldsFunc(text, func(r rune) bool {
+		switch r {
+		case ',', '，', '、', ';', '；', '/', '|', '\n', '\r', '\t':
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+func normalizeMetadataTag(tag string) string {
+	tag = strings.TrimSpace(tag)
+	tag = strings.Trim(tag, "#＃[]【】()（）{}「」『』.,，。;；:：!！?？\"'`")
+	tag = strings.Join(strings.Fields(tag), "")
+	if tag == "" {
+		return ""
+	}
+
+	runes := []rune(tag)
+	if len(runes) > 20 {
+		tag = string(runes[:20])
+	}
+	return tag
+}
+
+func needsMetadataTranslation(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+
+	hasHan := false
+	for _, r := range text {
+		if unicode.Is(unicode.Hangul, r) || unicode.In(r, unicode.Hiragana, unicode.Katakana) {
+			return true
+		}
+		if unicode.Is(unicode.Han, r) {
+			hasHan = true
+		}
+	}
+
+	return !hasHan
 }
 
 // executeWithDeepSeek 使用 DeepSeek 生成元数据
@@ -180,55 +396,7 @@ func (g *GenerateMetadata) executeWithDeepSeek(context map[string]interface{}) b
 		return true // API调用失败不算整个任务失败
 	}
 
-	// 6. 验证标题长度（Bilibili限制80字符）
-	if len([]rune(metadata.Title)) > 80 {
-		runes := []rune(metadata.Title)
-		metadata.Title = string(runes[:77]) + "..."
-		g.App.Logger.Warnf("⚠️  标题过长，已截断为80字符")
-	}
-
-	// 7. 保存到 context
-	context["video_title"] = metadata.Title
-	context["video_description"] = metadata.Description
-	context["video_tags"] = metadata.Tags
-
-	// 8. 保存到 meta.json 文件
-	g.App.Logger.Info("💾 保存元数据到 meta.json 文件...")
-	if err := g.saveMetadataToFile(metadata); err != nil {
-		g.App.Logger.Errorf("❌ 保存 meta.json 文件失败: %v", err)
-		// 不影响任务继续执行
-	} else {
-		g.App.Logger.Info("✅ meta.json 文件已保存")
-	}
-
-	// 9. 保存到数据库
-	g.App.Logger.Info("💾 保存生成的元数据到数据库...")
-	savedVideo, err := g.SavedVideoService.GetVideoByVideoID(g.StateManager.VideoID)
-	if err != nil {
-		g.App.Logger.Errorf("❌ 获取视频记录失败: %v", err)
-		// 不影响任务继续执行
-	} else {
-		if err := g.SavedVideoService.UpdateGeneratedMetadata(
-			savedVideo.ID,
-			metadata.Title,
-			metadata.Description,
-			strings.Join(metadata.Tags, ","),
-		); err != nil {
-			g.App.Logger.Errorf("❌ 保存元数据到数据库失败: %v", err)
-		} else {
-			g.App.Logger.Info("✅ 元数据已保存到数据库")
-		}
-	}
-
-	// 10. 输出生成结果
-	g.App.Logger.Info("========================================")
-	g.App.Logger.Info("✅ 视频元数据生成成功！")
-	g.App.Logger.Infof("📌 标题: %s", metadata.Title)
-	g.App.Logger.Infof("📝 描述: %s", g.truncateString(metadata.Description, 100))
-	g.App.Logger.Infof("🏷️  标签: %v", metadata.Tags)
-	g.App.Logger.Info("========================================")
-
-	return true
+	return g.saveMetadataResults(metadata, context)
 }
 
 // extractTextFromSRT 从SRT内容中提取纯文本
@@ -578,6 +746,18 @@ func (g *GenerateMetadata) executeWithGeminiText(taskContext map[string]interfac
 
 // saveMetadataResults 保存元数据结果到context和数据库
 func (g *GenerateMetadata) saveMetadataResults(metadata *VideoMetadata, taskContext map[string]interface{}) bool {
+	if metadata == nil {
+		metadata = &VideoMetadata{
+			Title:       g.StateManager.VideoID,
+			Description: "自动上传的视频",
+			Tags:        []string{"视频"},
+		}
+	}
+
+	if _, skipped := taskContext["metadata_skipped"]; !skipped {
+		metadata = g.localizeMetadataForBilibili(metadata)
+	}
+
 	// 1. 验证标题长度
 	if len([]rune(metadata.Title)) > 80 {
 		runes := []rune(metadata.Title)
