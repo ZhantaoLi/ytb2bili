@@ -133,15 +133,9 @@ jobs:
 
           ### 📝 变更说明
 
-          - 更新 README 与 Docker 文档，修正当前运行方式和配置项
+          - 更新 README 文档，修正当前运行方式和配置项
           - 默认免费流程无需付费 API，外部模型/翻译 API 均需自行配置
           - 增强发布产物，提供多平台二进制包和校验文件
-
-          ### 🐳 Docker
-
-          \`\`\`bash
-          docker pull zhantaoli/ytb2bili:latest
-          \`\`\`
 
           ---
 
