@@ -30,9 +30,11 @@ docker compose up -d
 docker compose logs -f ytb2bili
 ```
 
-打开 `http://localhost:8096`。
+打开 `http://localhost:8096`，按浏览器中的首次启动向导创建第一个本地管理员账号。普通本地流程不再需要预先配置管理员环境变量。
 
-第一次登录后台前，需要显式配置管理员账号。可加入 `docker-compose.yml` 的 `ytb2bili.environment`，也可以在启动服务的 shell 中导出：
+`yt-dlp` 和 `ffmpeg` 仍然是外部运行工具。开始下载或媒体处理任务前，请在宿主机安装它们并放入 PATH，或使用可调用这些工具的容器镜像/路径配置。
+
+无头或服务器部署场景仍可用环境变量引导第一个管理员：
 
 ```bash
 YTB2BILI_ADMIN_USERNAME=owner
@@ -41,7 +43,7 @@ YTB2BILI_ADMIN_EMAIL=owner@example.local
 YTB2BILI_ACCOUNT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 ```
 
-`YTB2BILI_ACCOUNT_ENCRYPTION_KEY` 必须是 16、24、32 字节，或 base64 解码后是这些长度。未配置时会生成进程级临时密钥，B 站账号加密数据可能无法跨重启稳定解密。
+`YTB2BILI_ACCOUNT_ENCRYPTION_KEY` 是可选项。未配置时，程序会自动生成 32 字节 AES key，并持久化到 `data/secrets/account_encryption.key`。如果手动设置，值必须是 16、24、32 字节，或 base64 解码后是这些长度。
 
 ## 本地开发
 
@@ -57,6 +59,8 @@ go run main.go
 ```
 
 `go run main.go` 会启动 HTTP 服务、数据库迁移、准备阶段调度器和上传调度器。建议本地测试保持 `auto_upload = false`，除非你明确要让就绪视频自动投稿。
+
+首次打开 `http://localhost:8096` 时，通过浏览器向导创建管理员。`yt-dlp` 和 `ffmpeg` 需要单独安装并保持可调用，或在支持的位置配置可执行路径。
 
 前端：
 

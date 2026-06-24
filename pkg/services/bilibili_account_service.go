@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,10 @@ type BilibiliAccountService struct {
 	logger        *zap.SugaredLogger
 }
 
-const accountEncryptionKeyEnv = "YTB2BILI_ACCOUNT_ENCRYPTION_KEY"
+const (
+	accountEncryptionKeyEnv      = "YTB2BILI_ACCOUNT_ENCRYPTION_KEY"
+	accountEncryptionKeyFilePath = "data/secrets/account_encryption.key"
+)
 
 var (
 	processAccountEncryptionKey     []byte
@@ -51,21 +55,47 @@ func resolveAccountEncryptionKey(logger *zap.SugaredLogger) []byte {
 	}
 
 	if strings.TrimSpace(os.Getenv(accountEncryptionKeyEnv)) != "" && logger != nil {
-		logger.Warnf("%s must be 16, 24, or 32 bytes, or base64 encoding of that length; falling back to a process-local key", accountEncryptionKeyEnv)
+		logger.Warnf("%s must be 16, 24, or 32 bytes, or base64 encoding of that length; falling back to the local key file", accountEncryptionKeyEnv)
 	}
 
 	processAccountEncryptionKeyOnce.Do(func() {
-		key := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, key); err != nil {
-			panic(fmt.Sprintf("generate account encryption key: %v", err))
+		key, err := loadOrCreateAccountEncryptionKey(accountEncryptionKeyFilePath)
+		if err != nil {
+			panic(fmt.Sprintf("load account encryption key: %v", err))
 		}
 		processAccountEncryptionKey = key
 		if logger != nil {
-			logger.Warnf("%s is not configured; generated a process-local key. Set it to persist encrypted account rows across restarts.", accountEncryptionKeyEnv)
+			logger.Infof("%s is not configured; using persistent local key file %s", accountEncryptionKeyEnv, accountEncryptionKeyFilePath)
 		}
 	})
 
 	return processAccountEncryptionKey
+}
+
+func loadOrCreateAccountEncryptionKey(path string) ([]byte, error) {
+	content, err := os.ReadFile(path)
+	if err == nil {
+		if key, ok := parseAESKey(string(content)); ok {
+			return key, nil
+		}
+		return nil, fmt.Errorf("invalid account encryption key file %s", path)
+	}
+	if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, key); err != nil {
+		return nil, fmt.Errorf("generate account encryption key: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, err
+	}
+	encoded := base64.StdEncoding.EncodeToString(key) + "\n"
+	if err := os.WriteFile(path, []byte(encoded), 0600); err != nil {
+		return nil, err
+	}
+	return key, nil
 }
 
 func parseAESKey(raw string) ([]byte, bool) {

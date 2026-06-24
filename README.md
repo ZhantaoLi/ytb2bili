@@ -30,9 +30,11 @@ docker compose up -d
 docker compose logs -f ytb2bili
 ```
 
-Open `http://localhost:8096`.
+Open `http://localhost:8096` and complete the first-start wizard in the browser. The wizard creates the first local administrator account; no admin environment variables are required for the normal local flow.
 
-Before the first admin login, add explicit admin credentials to the `ytb2bili` service environment or export them in the shell that starts the service:
+`yt-dlp` and `ffmpeg` are still external runtime tools. Install them on the host or make sure the container image/path you use can call them before starting download or media processing tasks.
+
+For headless or server deployments, you may still bootstrap the first administrator with environment variables:
 
 ```bash
 YTB2BILI_ADMIN_USERNAME=owner
@@ -41,7 +43,7 @@ YTB2BILI_ADMIN_EMAIL=owner@example.local
 YTB2BILI_ACCOUNT_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 ```
 
-Use a 16, 24, or 32 byte value for `YTB2BILI_ACCOUNT_ENCRYPTION_KEY`, or a base64 value that decodes to one of those lengths. Without it, encrypted Bilibili account rows use a process-local key and may not survive restarts.
+`YTB2BILI_ACCOUNT_ENCRYPTION_KEY` is optional. If it is not set, ytb2bili generates a 32-byte AES key and persists it to `data/secrets/account_encryption.key`. If you do set it, use a 16, 24, or 32 byte value, or a base64 value that decodes to one of those lengths.
 
 ## Local Development
 
@@ -59,6 +61,8 @@ go run main.go
 `go run main.go` starts the HTTP server, database migrations, the preparation scheduler, and the upload scheduler. Keep `auto_upload = false` during local testing unless you intentionally want ready videos uploaded automatically.
 
 The backend listens on `http://localhost:8096` by default.
+
+On first open, use the browser wizard to create the administrator account. Install `yt-dlp` and `ffmpeg` separately and keep them available in `PATH`, or configure the executable path where supported.
 
 ### Frontend
 

@@ -54,6 +54,8 @@ func NewAuthHandler(app *core.AppServer) *AuthHandler {
 func (h *AuthHandler) RegisterRoutes(server *core.AppServer) {
 	publicAuth := server.Engine.Group("/api/v1/auth")
 	{
+		publicAuth.GET("/admin/setup-status", h.adminSetupStatus)
+		publicAuth.POST("/admin/setup", h.adminSetup)
 		publicAuth.POST("/admin/login", h.adminLogin)
 	}
 
@@ -96,7 +98,10 @@ func (h *AuthHandler) adminAuthMiddleware() gin.HandlerFunc {
 }
 
 func requiresAdminAuth(path string) bool {
-	if !strings.HasPrefix(path, "/api/v1/") || path == "/api/v1/auth/admin/login" {
+	if !strings.HasPrefix(path, "/api/v1/") ||
+		path == "/api/v1/auth/admin/login" ||
+		path == "/api/v1/auth/admin/setup-status" ||
+		path == "/api/v1/auth/admin/setup" {
 		return false
 	}
 
@@ -160,11 +165,145 @@ type AdminLoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// AdminSetupRequest 首次启动管理员创建请求
+type AdminSetupRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+	Email    string `json:"email"`
+}
+
+type ToolDependencyStatus struct {
+	YTDLPRequired  bool `json:"yt_dlp_required"`
+	FFmpegRequired bool `json:"ffmpeg_required"`
+}
+
+type AdminSetupStatusResponse struct {
+	SetupRequired      bool                 `json:"setup_required"`
+	EnvAdminConfigured bool                 `json:"env_admin_configured"`
+	ToolDependencies   ToolDependencyStatus `json:"tool_dependencies"`
+}
+
 // AdminLoginResponse 管理员登录响应
 type AdminLoginResponse struct {
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
 	User      gin.H     `json:"user"`
+}
+
+// adminSetupStatus 返回首次启动向导状态
+func (h *AuthHandler) adminSetupStatus(c *gin.Context) {
+	hasAdmin, err := h.hasAnyAdminUser()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to check admin setup status",
+		})
+		return
+	}
+
+	envAdminConfigured := isEnvAdminConfigured()
+	c.JSON(http.StatusOK, APIResponse{
+		Code:    200,
+		Message: "success",
+		Data: AdminSetupStatusResponse{
+			SetupRequired:      !hasAdmin && !envAdminConfigured,
+			EnvAdminConfigured: envAdminConfigured,
+			ToolDependencies: ToolDependencyStatus{
+				YTDLPRequired:  true,
+				FFmpegRequired: true,
+			},
+		},
+	})
+}
+
+// adminSetup 创建第一个管理员，并直接签发登录 token
+func (h *AuthHandler) adminSetup(c *gin.Context) {
+	var req AdminSetupRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Invalid request parameters: " + err.Error(),
+		})
+		return
+	}
+
+	username := strings.TrimSpace(req.Username)
+	password := req.Password
+	email := strings.TrimSpace(req.Email)
+	if username == "" || password == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Username and password are required",
+		})
+		return
+	}
+	if len(password) < 12 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Password must be at least 12 characters",
+		})
+		return
+	}
+	if isForbiddenDefaultAdmin(username, password) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "Default admin credentials are disabled",
+		})
+		return
+	}
+	if isEnvAdminConfigured() {
+		c.JSON(http.StatusConflict, gin.H{
+			"code":    409,
+			"message": "Admin setup is disabled because environment admin credentials are configured",
+		})
+		return
+	}
+
+	hasAdmin, err := h.hasAnyAdminUser()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to check existing admin user",
+		})
+		return
+	}
+	if hasAdmin {
+		c.JSON(http.StatusConflict, gin.H{
+			"code":    409,
+			"message": "Admin user already exists",
+		})
+		return
+	}
+
+	if email == "" {
+		email = username + "@ytb2bili.local"
+	}
+	now := time.Now()
+	adminUser := models.TBUser{
+		Id:         uuid.New().String(),
+		Username:   username,
+		Email:      email,
+		NickName:   "Administrator",
+		Status:     "active",
+		CreateTime: now,
+		UpdateTime: now,
+	}
+	if err := adminUser.HashPassword(password); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to hash admin password",
+		})
+		return
+	}
+	if err := h.App.DB.Create(&adminUser).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to create admin user",
+		})
+		return
+	}
+
+	h.writeAdminLoginResponse(c, &adminUser, "Setup successful")
 }
 
 // adminLogin 管理员登录
@@ -177,7 +316,8 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 		})
 		return
 	}
-	if isForbiddenDefaultAdmin(req.Username, req.Password) {
+	username := strings.TrimSpace(req.Username)
+	if isForbiddenDefaultAdmin(username, req.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"code":    401,
 			"message": "Default admin credentials are disabled. Configure a non-default admin password.",
@@ -186,13 +326,20 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 	}
 
 	// 确保管理员用户存在
-	adminUser, err := h.ensureAdminUser()
+	adminUser, err := h.adminUserForLogin(username)
 	if err != nil {
 		log.Printf("Failed to ensure admin user: %v", err)
 		if errors.Is(err, errAdminNotConfigured) {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"code":    401,
-				"message": "Admin user is not configured. Set YTB2BILI_ADMIN_USERNAME and YTB2BILI_ADMIN_PASSWORD before first login.",
+				"message": "Admin user is not configured. Complete first-start setup in the browser or set YTB2BILI_ADMIN_USERNAME and YTB2BILI_ADMIN_PASSWORD.",
+			})
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"code":    401,
+				"message": "Invalid username or password",
 			})
 			return
 		}
@@ -204,7 +351,7 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 	}
 
 	// 验证用户名
-	if req.Username != adminUser.Username {
+	if username != adminUser.Username {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"code":    401,
 			"message": "Invalid username or password",
@@ -221,6 +368,10 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 		return
 	}
 
+	h.writeAdminLoginResponse(c, adminUser, "Login successful")
+}
+
+func (h *AuthHandler) writeAdminLoginResponse(c *gin.Context, adminUser *models.TBUser, message string) {
 	// 生成 JWT token
 	token, err := h.JWTManager.GenerateToken(adminUser.Id, adminUser.Email, adminUser.Username)
 	if err != nil {
@@ -237,7 +388,7 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 
 	c.JSON(http.StatusOK, APIResponse{
 		Code:    200,
-		Message: "Login successful",
+		Message: message,
 		Data: AdminLoginResponse{
 			Token:     token,
 			ExpiresAt: expiresAt,
@@ -249,6 +400,42 @@ func (h *AuthHandler) adminLogin(c *gin.Context) {
 			},
 		},
 	})
+}
+
+func isEnvAdminConfigured() bool {
+	return strings.TrimSpace(os.Getenv("YTB2BILI_ADMIN_USERNAME")) != "" &&
+		os.Getenv("YTB2BILI_ADMIN_PASSWORD") != ""
+}
+
+func (h *AuthHandler) hasAnyAdminUser() (bool, error) {
+	var count int64
+	if err := h.App.DB.Model(&models.TBUser{}).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (h *AuthHandler) adminUserForLogin(username string) (*models.TBUser, error) {
+	if username != "" {
+		var user models.TBUser
+		result := h.App.DB.Where("user_name = ?", username).First(&user)
+		if result.Error == nil {
+			return &user, nil
+		}
+		if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, result.Error
+		}
+	}
+
+	hasAdmin, err := h.hasAnyAdminUser()
+	if err != nil {
+		return nil, err
+	}
+	if hasAdmin && !isEnvAdminConfigured() {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return h.ensureAdminUser()
 }
 
 // adminLogout 管理员登出
