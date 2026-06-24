@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestDownloadImgHandlerFailsWhenAllThumbnailDownloadsFail(t *testing.T) {
+func TestDownloadImgHandlerContinuesWhenAllThumbnailDownloadsFail(t *testing.T) {
 	originalDownloader := downloadYouTubeThumbnail
 	defer func() { downloadYouTubeThumbnail = originalDownloader }()
 
@@ -55,15 +55,18 @@ func TestDownloadImgHandlerFailsWhenAllThumbnailDownloadsFail(t *testing.T) {
 	}
 
 	context := map[string]interface{}{}
-	if ok := task.Execute(context); ok {
-		t.Fatalf("Execute() = true, want false when every thumbnail download fails")
+	if ok := task.Execute(context); !ok {
+		t.Fatalf("Execute() = false, want true because cover download is non-blocking; context=%v", context)
 	}
 	if gotProxyURL != "http://127.0.0.1:10809" {
 		t.Fatalf("proxy URL = %q, want configured proxy", gotProxyURL)
 	}
-	errText, _ := context["error"].(string)
-	if !strings.Contains(errText, "封面下载失败") {
-		t.Fatalf("context error = %q, want cover download failure", errText)
+	if _, exists := context["error"]; exists {
+		t.Fatalf("context error should not be set for non-blocking cover failure, got %v", context["error"])
+	}
+	warningText, _ := context["cover_download_error"].(string)
+	if !strings.Contains(warningText, "封面下载失败") {
+		t.Fatalf("cover_download_error = %q, want cover download failure", warningText)
 	}
 }
 

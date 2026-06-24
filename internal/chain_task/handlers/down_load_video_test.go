@@ -45,6 +45,9 @@ func TestAppendYtDlpRuntimeArgsUsesNodeWhenAvailable(t *testing.T) {
 	if !strings.Contains(joined, "--js-runtime node:D:\\ProgramData\\nodejs\\node.exe") {
 		t.Fatalf("yt-dlp args should include node js runtime, got %q", joined)
 	}
+	if !strings.Contains(joined, "--remote-components ejs:github") {
+		t.Fatalf("yt-dlp args should enable EJS challenge solver download, got %q", joined)
+	}
 }
 
 func TestBuildYtDlpAuthAttemptsFallsBackToChromeCookies(t *testing.T) {

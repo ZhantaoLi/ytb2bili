@@ -456,7 +456,10 @@ func appendYtDlpRuntimeArgs(args []string, lookPath executableLookPath) []string
 	if err != nil || nodePath == "" {
 		return args
 	}
-	return append(args, "--js-runtime", "node:"+nodePath)
+	return append(args,
+		"--js-runtime", "node:"+nodePath,
+		"--remote-components", "ejs:github",
+	)
 }
 
 // logOutput 实时输出日志

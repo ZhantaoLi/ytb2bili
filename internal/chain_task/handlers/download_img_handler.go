@@ -112,9 +112,11 @@ func (t *DownloadImgHandler) Execute(context map[string]interface{}) bool {
 		if len(failedMessages) > 0 {
 			errorMsg += ": " + strings.Join(failedMessages, "; ")
 		}
-		context["error"] = errorMsg
-		t.App.Logger.Errorf(errorMsg)
-		return false
+		context["cover_download_error"] = errorMsg
+		if t.App != nil && t.App.Logger != nil {
+			t.App.Logger.Warnf("%s，将继续后续任务并在上传时使用默认封面或视频截图", errorMsg)
+		}
+		return true
 	}
 
 	return true
