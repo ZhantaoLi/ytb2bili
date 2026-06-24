@@ -3,7 +3,7 @@
 
 listen = ":8096"
 environment = "development"
-debug = true
+debug = false
 fileUpDir = "./data"
 data_path = "./data"
 yt_dlp_path = ""
